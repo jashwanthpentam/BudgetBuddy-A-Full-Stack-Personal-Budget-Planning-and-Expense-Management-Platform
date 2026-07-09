@@ -5,93 +5,135 @@ import API from "../services/api";
 
 function Register(){
 
+
 const [username,setUsername]=useState("");
+
 const [email,setEmail]=useState("");
+
 const [password,setPassword]=useState("");
 
 
 
 const register=async()=>{
 
+
 try{
 
+
 await API.post(
+
 "/users/register/",
+
 {
+
 username,
+
 email,
+
 password
+
 }
+
 );
 
 
-alert("Registration Successful ✅");
+alert("Account Created Successfully ✅");
 
 
 }
+
+
 catch(error){
 
-alert("Registration Failed ❌");
+alert("Registration Failed");
 
 }
 
 
-};
+}
 
 
 
 return(
 
-<div>
+<div className="auth-container">
 
 
-<h1>BudgetBuddy Register</h1>
+<div className="auth-card">
+
+
+<div className="logo">
+
+📝
+
+</div>
+
+
+<h1>
+
+Create Account
+
+</h1>
+
 
 
 <input
+
 placeholder="Username"
+
 onChange={(e)=>setUsername(e.target.value)}
+
 />
 
 
-<br/><br/>
-
 
 <input
+
 placeholder="Email"
+
 onChange={(e)=>setEmail(e.target.value)}
+
 />
 
-
-<br/><br/>
 
 
 <input
+
 type="password"
+
 placeholder="Password"
+
 onChange={(e)=>setPassword(e.target.value)}
+
 />
 
-
-<br/><br/>
 
 
 <button onClick={register}>
+
 Register
+
 </button>
 
 
-<br/>
+
+<br/><br/>
 
 
 <Link to="/">
-Back to Login
+
+⬅ Back To Login
+
 </Link>
+
 
 
 </div>
 
-);
+
+</div>
+
+)
 
 }
 
