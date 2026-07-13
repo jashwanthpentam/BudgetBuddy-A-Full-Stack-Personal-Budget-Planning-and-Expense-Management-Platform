@@ -43,4 +43,10 @@ urlpatterns = [
         'api/users/',
         include('users.urls')
     ),
+
+    path(
+        'api/expenses/',
+        include('expenses.urls')
+    ),
+
 ]

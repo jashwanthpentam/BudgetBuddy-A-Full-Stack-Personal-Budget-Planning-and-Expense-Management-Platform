@@ -1,10 +1,44 @@
 import { Link } from "react-router-dom";
-
+import { useEffect, useState } from "react";
+import API from "../services/api";
 
 function Dashboard(){
 
 
 const username = localStorage.getItem("username");
+const [totalExpense, setTotalExpense] = useState(0);
+const [expenses, setExpenses] = useState([]);
+
+
+useEffect(() => {
+
+    fetchDashboard();
+
+}, []);
+
+const fetchDashboard = async () => {
+
+    try {
+
+        const totalRes = await API.get("/expenses/total/");
+
+        setTotalExpense(
+            totalRes.data.total_expense
+        );
+
+        const expenseRes = await API.get("/expenses/");
+
+        setExpenses(expenseRes.data);
+
+    }
+
+    catch(error){
+
+        console.log(error);
+
+    }
+
+};
 
 
 return(
@@ -88,7 +122,7 @@ Manage your money smarter with BudgetBuddy
 
 <h2>💳 Expenses</h2>
 
-<h1>₹0</h1>
+<h1>₹{totalExpense}</h1>
 
 </div>
 
@@ -105,7 +139,70 @@ Manage your money smarter with BudgetBuddy
 
 </div>
 
+<div
+className="table-card"
+style={{marginTop:"35px"}}
+>
 
+<h2>
+
+🕒 Recent Expenses
+
+</h2>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>Title</th>
+
+<th>Category</th>
+
+<th>Amount</th>
+
+<th>Date</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{
+expenses
+.slice(0,5)
+.map((expense)=>(
+
+<tr key={expense.id}>
+
+<td>{expense.title}</td>
+
+<td>{expense.category}</td>
+
+<td>
+
+₹{expense.amount}
+
+</td>
+
+<td>
+
+{expense.expense_date}
+
+</td>
+
+</tr>
+
+))
+}
+
+</tbody>
+
+</table>
+
+</div>
 
 </div>
 
