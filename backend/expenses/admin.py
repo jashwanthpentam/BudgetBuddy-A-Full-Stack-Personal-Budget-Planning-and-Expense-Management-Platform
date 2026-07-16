@@ -6,7 +6,6 @@ from .models import Expense
 class ExpenseAdmin(admin.ModelAdmin):
 
     list_display = (
-        "title",
         "category",
         "amount",
         "expense_date",
@@ -14,7 +13,6 @@ class ExpenseAdmin(admin.ModelAdmin):
     )
 
     search_fields = (
-        "title",
         "category",
         "user__username",
     )

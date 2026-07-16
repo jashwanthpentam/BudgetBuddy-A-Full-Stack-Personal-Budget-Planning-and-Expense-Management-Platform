@@ -6,7 +6,6 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
 
   const [form, setForm] = useState({
-  title: "",
   amount: "",
   category: "",
   description: "",
@@ -74,12 +73,17 @@ export default function Expenses() {
     if (
         !form.category || 
         !form.amount || 
-        !form.title || 
         !form.expense_date
     ) {
       alert("Please fill all required fields.");
       return;
     }
+
+    if (Number(form.amount) <= 0) {
+      alert("Amount must be greater than 0.");
+      return;
+    }
+    
     if (editingId) {
 
       await API.put(
@@ -105,7 +109,6 @@ export default function Expenses() {
     }
 
     setForm({
-      title: "",
       amount: "",
       category: "",
       description: "",
@@ -160,8 +163,6 @@ export default function Expenses() {
 
   setForm({
 
-    title:expense.title,
-
     amount:expense.amount,
 
     category:expense.category,
@@ -207,16 +208,10 @@ export default function Expenses() {
         <div className="form-grid">
 
           <input
-            placeholder="Title"
-            value={form.title}
-            onChange={(e) =>
-              setForm({ ...form, title: e.target.value })
-            }
-          />
-
-          <input
             type="number"
             placeholder="Amount"
+            min="1"
+            step="0.01"
             value={form.amount}
             onChange={(e) =>
               setForm({ ...form, amount: e.target.value })
@@ -320,14 +315,12 @@ export default function Expenses() {
           <thead>
 
             <tr>
-
-              <th>Title</th>
-              <th>Category</th>
-              <th>Amount</th>
               <th>Date</th>
+              <th>Amount</th>
+              <th>Category</th>
+              <th>Description</th>
               <th>Edit</th>
               <th>Delete</th>
-
             </tr>
 
           </thead>
@@ -350,18 +343,18 @@ export default function Expenses() {
 
                 <tr key={expense.id}>
 
-                  <td>{expense.title}</td>
-
-                  <td>{expense.category}</td>
+                  <td>{expense.expense_date}</td>
 
                   <td>₹ {expense.amount}</td>
 
-                  <td>{expense.expense_date}</td>
+                  <td>{expense.category}</td>
+
+                  <td>{expense.description}</td>
 
                   <td>
 
                     <button
-                      className="add-btn"
+                      className="edit-btn"
                       onClick={() => editExpense(expense)}
                     >
                       Edit

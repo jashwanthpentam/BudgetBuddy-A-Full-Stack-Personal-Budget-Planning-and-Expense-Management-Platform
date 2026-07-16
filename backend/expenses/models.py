@@ -20,9 +20,6 @@ class Expense(models.Model):
         on_delete=models.CASCADE
     )
 
-    title = models.CharField(
-        max_length=100
-    )
 
     amount = models.DecimalField(
         max_digits=10,

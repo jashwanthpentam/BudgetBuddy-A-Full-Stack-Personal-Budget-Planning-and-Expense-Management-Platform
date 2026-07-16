@@ -311,19 +311,51 @@ padding:15px;
 
 td{
 padding:15px;
-text-align:center;
 border-bottom:1px solid #334155;
+vertical-align:middle;
+}
+
+td:not(:nth-child(4)){
+text-align:center;
+}
+
+td:nth-child(4){
+text-align:left;
+padding-left:20px;
+}
+
+.edit-btn,
+.delete-btn{
+    width: 90px;
+    height: 40px;
+
+    border: none;
+    border-radius: 8px;
+
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.edit-btn{
+    background: #22c55e;
+}
+
+.edit-btn:hover{
+    background: #16a34a;
 }
 
 .delete-btn{
-background:#ef4444;
-color:white;
-border:none;
-padding:8px 15px;
-border-radius:8px;
-cursor:pointer;
+    background: #ef4444;
 }
 
 .delete-btn:hover{
-background:#dc2626;
+    background: #dc2626;
+}
+
+table td:nth-child(4){
+    max-width:220px;
+    word-break:break-word;
 }

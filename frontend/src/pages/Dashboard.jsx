@@ -8,7 +8,8 @@ function Dashboard(){
 const username = localStorage.getItem("username");
 const [totalExpense, setTotalExpense] = useState(0);
 const [expenses, setExpenses] = useState([]);
-
+const [totalIncome, setTotalIncome] = useState(0);
+const [balance, setBalance] = useState(0);
 
 useEffect(() => {
 
@@ -20,15 +21,29 @@ const fetchDashboard = async () => {
 
     try {
 
-        const totalRes = await API.get("/expenses/total/");
-
-        setTotalExpense(
-            totalRes.data.total_expense
+        const summaryRes = await API.get(
+            "/income/summary/"
         );
 
-        const expenseRes = await API.get("/expenses/");
+        setTotalIncome(
+            summaryRes.data.total_income
+        );
 
-        setExpenses(expenseRes.data);
+        setTotalExpense(
+            summaryRes.data.total_expense
+        );
+
+        setBalance(
+            summaryRes.data.current_balance
+        );
+
+        const expenseRes = await API.get(
+            "/expenses/"
+        );
+
+        setExpenses(
+            expenseRes.data
+        );
 
     }
 
@@ -67,8 +82,6 @@ return(
 
 <Link to="/settings">⚙️ Settings</Link>
 
-
-
 <button
 
 onClick={()=>{
@@ -88,14 +101,11 @@ Logout
 
 </div>
 
-
-
-
 <div className="content">
 
 
 <h1>
-Welcome {username} 👋
+Welcome Back {username} 👋
 </h1>
 
 
@@ -112,7 +122,7 @@ Manage your money smarter with BudgetBuddy
 
 <h2>💵 Income</h2>
 
-<h1>₹0</h1>
+<h1>₹{totalIncome}</h1>
 
 </div>
 
@@ -127,12 +137,11 @@ Manage your money smarter with BudgetBuddy
 </div>
 
 
-
 <div className="card">
 
-<h2>🏦 Savings</h2>
+<h2>💰 Balance</h2>
 
-<h1>₹0</h1>
+<h1>₹{balance}</h1>
 
 </div>
 
@@ -156,13 +165,13 @@ style={{marginTop:"35px"}}
 
 <tr>
 
-<th>Title</th>
-
-<th>Category</th>
+<th>Date</th>
 
 <th>Amount</th>
 
-<th>Date</th>
+<th>Category</th>
+
+<th>Description</th>
 
 </tr>
 
@@ -177,21 +186,13 @@ expenses
 
 <tr key={expense.id}>
 
-<td>{expense.title}</td>
+<td>{expense.expense_date}</td>
+
+<td>₹{expense.amount}</td>
 
 <td>{expense.category}</td>
 
-<td>
-
-₹{expense.amount}
-
-</td>
-
-<td>
-
-{expense.expense_date}
-
-</td>
+<td>{expense.description}</td>
 
 </tr>
 
