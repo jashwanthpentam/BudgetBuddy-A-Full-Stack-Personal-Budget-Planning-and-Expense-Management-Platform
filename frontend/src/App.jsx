@@ -1,5 +1,5 @@
 import "./App.css";
-
+import ProtectedRoute from "./components/ProtectedRoute";
 import {BrowserRouter,Routes,Route} from "react-router-dom";
 
 
@@ -31,21 +31,76 @@ return(
 
 <Route path="/home" element={<Home/>}/>
 
-<Route path="/dashboard" element={<Dashboard/>}/>
+<Route
+    path="/dashboard"
+    element={
+        <ProtectedRoute>
+            <Dashboard />
+        </ProtectedRoute>
+    }
+/>
+<Route
+    path="/income"
+    element={
+        <ProtectedRoute>
+            <Income />
+        </ProtectedRoute>
+    }
+/>
 
-<Route path="/expenses" element={<Expenses/>}/>
+<Route
+    path="/expenses"
+    element={
+        <ProtectedRoute>
+            <Expenses />
+        </ProtectedRoute>
+    }
+/>
 
-<Route path="/income" element={<Income/>}/>
+<Route
+    path="/savings"
+    element={
+        <ProtectedRoute>
+            <Savings />
+        </ProtectedRoute>
+    }
+/>
 
-<Route path="/savings" element={<Savings/>}/>
+<Route
+    path="/notifications"
+    element={
+        <ProtectedRoute>
+            <Notifications />
+        </ProtectedRoute>
+    }
+/>
 
-<Route path="/notifications" element={<Notifications/>}/>
+<Route
+    path="/budgets"
+    element={
+        <ProtectedRoute>
+            <Budgets />
+        </ProtectedRoute>
+    }
+/>
 
-<Route path="/budgets" element={<Budgets/>}/>
+<Route
+    path="/reports"
+    element={
+        <ProtectedRoute>
+            <Reports />
+        </ProtectedRoute>
+    }
+/>
 
-<Route path="/reports" element={<Reports/>}/>
-
-<Route path="/settings" element={<Settings/>}/>
+<Route
+    path="/settings"
+    element={
+        <ProtectedRoute>
+            <Settings />
+        </ProtectedRoute>
+    }
+/>
 
 
 </Routes>

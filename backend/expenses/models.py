@@ -5,21 +5,20 @@ from django.contrib.auth.models import User
 class Expense(models.Model):
 
     CATEGORY_CHOICES = [
-    ("FOOD", "Food"),
-    ("TRAVEL", "Travel"),
-    ("SHOPPING", "Shopping"),
-    ("EDUCATION", "Education"),
-    ("ENTERTAINMENT", "Entertainment"),
-    ("HEALTHCARE", "Healthcare"),
-    ("BILLS", "Bills"),
-    ("MISCELLANEOUS", "Miscellaneous"),
-]
+        ("FOOD", "Food"),
+        ("TRAVEL", "Travel"),
+        ("SHOPPING", "Shopping"),
+        ("EDUCATION", "Education"),
+        ("ENTERTAINMENT", "Entertainment"),
+        ("HEALTHCARE", "Healthcare"),
+        ("BILLS", "Bills"),
+        ("MISCELLANEOUS", "Miscellaneous"),
+    ]
 
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE
     )
-
 
     amount = models.DecimalField(
         max_digits=10,
@@ -46,4 +45,4 @@ class Expense(models.Model):
     )
 
     def __str__(self):
-        return f"{self.title} - {self.user.username}"
+        return f"{self.category} - ₹{self.amount} - {self.user.username}"

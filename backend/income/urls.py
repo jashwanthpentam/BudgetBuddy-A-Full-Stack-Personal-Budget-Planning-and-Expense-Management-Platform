@@ -1,5 +1,5 @@
 from django.urls import path
-
+from .views import TransactionDashboardAPIView
 from .views import (
     IncomeListCreateView,
     IncomeDetailView,
@@ -31,5 +31,11 @@ urlpatterns = [
     "summary/",
     FinancialSummaryView.as_view(),
     name="financial-summary",
+    ),
+
+    path(
+    "dashboard/",
+    TransactionDashboardAPIView.as_view(),
+    name="transaction-dashboard"
     ),
 ]

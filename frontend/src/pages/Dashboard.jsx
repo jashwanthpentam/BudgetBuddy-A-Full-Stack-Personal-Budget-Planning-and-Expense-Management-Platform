@@ -1,48 +1,49 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import API from "../services/api";
-
+import { getDashboardSummary } from "../services/dashboardService";
 function Dashboard(){
 
-
+const [totalBudget, setTotalBudget] = useState(0);
 const username = localStorage.getItem("username");
 const [totalExpense, setTotalExpense] = useState(0);
-const [expenses, setExpenses] = useState([]);
+const [transactions, setTransactions] = useState([]);
 const [totalIncome, setTotalIncome] = useState(0);
 const [balance, setBalance] = useState(0);
-
+const [month, setMonth] = useState(new Date().getMonth() + 1);
+const [year, setYear] = useState(new Date().getFullYear());
 useEffect(() => {
 
     fetchDashboard();
 
-}, []);
+}, [month, year]);
 
 const fetchDashboard = async () => {
 
     try {
 
-        const summaryRes = await API.get(
-            "/income/summary/"
+        const dashboardRes = await getDashboardSummary(
+            month,
+            year
         );
 
         setTotalIncome(
-            summaryRes.data.total_income
+            dashboardRes.total_income
         );
 
         setTotalExpense(
-            summaryRes.data.total_expense
+            dashboardRes.total_expense
+        );
+
+        setTotalBudget(
+            dashboardRes.total_budget
         );
 
         setBalance(
-            summaryRes.data.current_balance
+            dashboardRes.current_balance
         );
 
-        const expenseRes = await API.get(
-            "/expenses/"
-        );
-
-        setExpenses(
-            expenseRes.data
+        setTransactions(
+            dashboardRes.recent_transactions
         );
 
     }
@@ -113,6 +114,55 @@ Welcome Back {username} 👋
 Manage your money smarter with BudgetBuddy
 </p>
 
+<div
+    style={{
+        display: "flex",
+        gap: "15px",
+        marginBottom: "20px",
+    }}
+>
+
+    <select
+        value={month}
+        onChange={(e) => setMonth(Number(e.target.value))}
+    >
+
+        {
+            Array.from({ length: 12 }, (_, i) => (
+
+                <option
+                    key={i + 1}
+                    value={i + 1}
+                >
+                    {[
+                        "January",
+                        "February",
+                        "March",
+                        "April",
+                        "May",
+                        "June",
+                        "July",
+                        "August",
+                        "September",
+                        "October",
+                        "November",
+                        "December",
+                    ][i]}
+                </option>
+
+            ))
+        }
+
+    </select>
+
+    <input
+        type="number"
+        value={year}
+        onChange={(e) => setYear(Number(e.target.value))}
+    />
+
+</div>
+
 
 
 <div className="cards">
@@ -139,6 +189,15 @@ Manage your money smarter with BudgetBuddy
 
 <div className="card">
 
+    <h2>📒 Budget</h2>
+
+    <h1>₹{totalBudget}</h1>
+
+</div>
+
+
+<div className="card">
+
 <h2>💰 Balance</h2>
 
 <h1>₹{balance}</h1>
@@ -155,7 +214,7 @@ style={{marginTop:"35px"}}
 
 <h2>
 
-🕒 Recent Expenses
+🕒 Recent Transactions
 
 </h2>
 
@@ -167,11 +226,11 @@ style={{marginTop:"35px"}}
 
 <th>Date</th>
 
-<th>Amount</th>
+<th>Type</th>
 
 <th>Category</th>
 
-<th>Description</th>
+<th>Amount</th>
 
 </tr>
 
@@ -180,19 +239,19 @@ style={{marginTop:"35px"}}
 <tbody>
 
 {
-expenses
+transactions
 .slice(0,5)
-.map((expense)=>(
+.map((transaction, index)=>(
 
-<tr key={expense.id}>
+<tr key={index}>
 
-<td>{expense.expense_date}</td>
+    <td>{transaction.date}</td>
 
-<td>₹{expense.amount}</td>
+    <td>{transaction.type}</td>
 
-<td>{expense.category}</td>
+    <td>{transaction.category}</td>
 
-<td>{expense.description}</td>
+    <td>₹{transaction.amount}</td>
 
 </tr>
 

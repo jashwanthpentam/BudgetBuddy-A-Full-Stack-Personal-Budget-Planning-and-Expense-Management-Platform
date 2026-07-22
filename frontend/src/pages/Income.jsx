@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
-
+import { getDashboardSummary } from "../services/dashboardService";
 export default function Income() {
 
   const [incomes, setIncomes] = useState([]);
-
   const [form, setForm] = useState({
     amount: "",
     source: "",
@@ -19,6 +18,8 @@ export default function Income() {
   const [sourceFilter, setSourceFilter] = useState("");
 
   const [sortBy, setSortBy] = useState("latest");
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
 
@@ -26,7 +27,7 @@ export default function Income() {
 
     fetchTotalIncome();
 
-  }, [sourceFilter, sortBy]);
+  }, [sourceFilter, sortBy, month, year]);
 
   const fetchIncome = async () => {
 
@@ -60,15 +61,20 @@ export default function Income() {
 
     try {
 
-      const res = await API.get("/income/total/");
+        const summary = await getDashboardSummary(
+            month,
+            year
+        );
 
-      setTotalIncome(res.data.total_income);
+        setTotalIncome(
+            summary.total_income
+        );
 
     }
 
     catch (err) {
 
-      console.log(err);
+        console.log(err);
 
     }
 
@@ -181,6 +187,55 @@ return (
     <h1 className="page-title">
       Income Management
     </h1>
+
+    <div
+    style={{
+        display: "flex",
+        gap: "15px",
+        marginBottom: "20px",
+    }}
+>
+
+    <select
+        value={month}
+        onChange={(e) => setMonth(Number(e.target.value))}
+    >
+
+        {
+            Array.from({ length: 12 }, (_, i) => (
+
+                <option
+                    key={i + 1}
+                    value={i + 1}
+                >
+                    {[
+                        "January",
+                        "February",
+                        "March",
+                        "April",
+                        "May",
+                        "June",
+                        "July",
+                        "August",
+                        "September",
+                        "October",
+                        "November",
+                        "December",
+                    ][i]}
+                </option>
+
+            ))
+        }
+
+    </select>
+
+    <input
+        type="number"
+        value={year}
+        onChange={(e) => setYear(Number(e.target.value))}
+    />
+
+</div>
 
     {/* Summary Cards */}
 

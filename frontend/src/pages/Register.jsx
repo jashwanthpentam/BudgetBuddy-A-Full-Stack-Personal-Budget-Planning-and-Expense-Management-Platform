@@ -13,42 +13,36 @@ const [email,setEmail]=useState("");
 const [password,setPassword]=useState("");
 
 
-const register=async()=>{
+const register = async () => {
 
+    console.log("Register button clicked");
 
-try{
+    try {
 
+        console.log("Base URL:", API.defaults.baseURL);
 
-await API.post(
+        const response = await API.post(
+            "/users/register/",
+            {
+                username,
+                email,
+                password,
+            }
+        );
 
-"/users/register/",
+        console.log("SUCCESS:", response);
 
-{
+        alert("Account Created Successfully ✅");
 
-username,
+    } catch (error) {
 
-email,
+        console.log("FULL ERROR:", error);
+        console.log("CONFIG:", error.config);
+        console.log("REQUEST:", error.request);
+        alert(JSON.stringify(error.response.data));
 
-password
-
-}
-
-);
-
-
-alert("Account Created Successfully ✅");
-
-
-}
-
-
-catch(error){
-
-alert("Registration Failed");
-
-}
-
-
+        alert("Registration Failed");
+    }
 }
 
 

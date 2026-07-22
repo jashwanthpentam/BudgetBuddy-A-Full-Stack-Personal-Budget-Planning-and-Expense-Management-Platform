@@ -4,13 +4,24 @@ const API = axios.create({
     baseURL: "http://127.0.0.1:8000/api",
 });
 
-// Automatically attach JWT token
 API.interceptors.request.use((config) => {
 
-    const token = localStorage.getItem("access");
+    const publicRoutes = [
+        "/users/register/",
+        "/token/",
+        "/token/refresh/",
+    ];
 
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    const isPublic = publicRoutes.some(route =>
+        config.url.endsWith(route)
+    );
+
+    if (!isPublic) {
+        const token = localStorage.getItem("access");
+
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
     }
 
     return config;

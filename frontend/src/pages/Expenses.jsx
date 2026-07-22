@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
-
+import { getDashboardSummary } from "../services/dashboardService";
 export default function Expenses() {
 
   const [expenses, setExpenses] = useState([]);
@@ -19,6 +19,8 @@ export default function Expenses() {
   const [categoryFilter, setCategoryFilter] = useState("");
   
   const [sortBy, setSortBy] = useState("");
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
 
   useEffect(() => {
 
@@ -26,7 +28,7 @@ export default function Expenses() {
 
     fetchTotalExpense();
 
-  }, [categoryFilter, sortBy]);
+  }, [categoryFilter, sortBy, month, year]);
 
   // Fetch All Expenses
   const fetchExpenses = async () => {
@@ -57,12 +59,26 @@ export default function Expenses() {
 
   // Fetch Total Expense
   const fetchTotalExpense = async () => {
+
     try {
-      const res = await API.get("/expenses/total/");
-      setTotalExpense(res.data.total_expense);
-    } catch (err) {
-      console.log(err);
+
+        const summary = await getDashboardSummary(
+            month,
+            year
+        );
+
+        setTotalExpense(
+            summary.total_expense
+        );
+
     }
+
+    catch (err) {
+
+        console.log(err);
+
+    }
+
   };
 
   // Add Expense
@@ -124,7 +140,11 @@ export default function Expenses() {
 
     console.log(err);
 
-    alert("Operation Failed");
+    if (err.response?.data?.error) {
+      alert(err.response.data.error);
+    } else {
+      alert("Operation Failed");
+    }
 
   }
 
@@ -182,6 +202,55 @@ export default function Expenses() {
       <h1 className="page-title">
         Expense Management
       </h1>
+
+      <div
+    style={{
+        display: "flex",
+        gap: "15px",
+        marginBottom: "20px",
+    }}
+>
+
+    <select
+        value={month}
+        onChange={(e) => setMonth(Number(e.target.value))}
+    >
+
+        {
+            Array.from({ length: 12 }, (_, i) => (
+
+                <option
+                    key={i + 1}
+                    value={i + 1}
+                >
+                    {[
+                        "January",
+                        "February",
+                        "March",
+                        "April",
+                        "May",
+                        "June",
+                        "July",
+                        "August",
+                        "September",
+                        "October",
+                        "November",
+                        "December",
+                    ][i]}
+                </option>
+
+            ))
+        }
+
+    </select>
+
+    <input
+        type="number"
+        value={year}
+        onChange={(e) => setYear(Number(e.target.value))}
+    />
+
+</div>
 
       {/* Summary Cards */}
 
