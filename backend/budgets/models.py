@@ -47,3 +47,11 @@ class Budget(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.category} ({self.month}/{self.year})"
+
+    warning_80_sent = models.BooleanField(default=False)
+
+    warning_90_sent = models.BooleanField(default=False)
+
+    warning_100_sent = models.BooleanField(default=False)
+
+    warning_exceeded_sent = models.BooleanField(default=False)

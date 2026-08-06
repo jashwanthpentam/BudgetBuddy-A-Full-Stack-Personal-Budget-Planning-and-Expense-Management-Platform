@@ -3,10 +3,42 @@ from django.contrib.auth.models import User
 
 
 class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.TextField()
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
 
+    NOTIFICATION_TYPES = [
+        ("budget", "Budget"),
+        ("saving", "Saving"),
+        ("reminder", "Reminder"),
+        ("report", "Report"),
+    ]
+
+    user = models.ForeignKey(
+                                User, 
+                                on_delete=models.CASCADE, 
+                                related_name="notifications"
+                            )   
+
+    title = models.CharField(
+        max_length=150
+    )
+
+    message = models.TextField()
+
+    notification_type = models.CharField(
+        max_length = 20,
+        choices = NOTIFICATION_TYPES,
+        default = "reminder",
+    )
+
+    is_read = models.BooleanField(
+        default = False
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add = True
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        
     def __str__(self):
-        return self.message[:30]
+        return self.title

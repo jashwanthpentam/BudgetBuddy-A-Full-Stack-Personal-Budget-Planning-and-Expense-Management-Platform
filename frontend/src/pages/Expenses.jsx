@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import MainLayout from "../layouts/MainLayout";
 import API from "../services/api";
 import { getDashboardSummary } from "../services/dashboardService";
+import useModuleDate from "../hooks/useModuleDate";
+
 export default function Expenses() {
 
   const [expenses, setExpenses] = useState([]);
@@ -19,8 +22,12 @@ export default function Expenses() {
   const [categoryFilter, setCategoryFilter] = useState("");
   
   const [sortBy, setSortBy] = useState("");
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const {
+    month,
+    year,
+    setMonth,
+    setYear,
+  } = useModuleDate();
 
   useEffect(() => {
 
@@ -197,7 +204,7 @@ export default function Expenses() {
 
   return (
 
-    <div className="content">
+    <MainLayout title="Expenses">
 
       <h1 className="page-title">
         Expense Management
@@ -454,7 +461,7 @@ export default function Expenses() {
 
       </div>
 
-    </div>
+    </MainLayout>
 
   );
 

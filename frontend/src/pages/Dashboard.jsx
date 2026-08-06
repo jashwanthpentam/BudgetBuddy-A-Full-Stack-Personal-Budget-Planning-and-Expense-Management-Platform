@@ -1,6 +1,12 @@
-import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import MainLayout from "../layouts/MainLayout";
 import { getDashboardSummary } from "../services/dashboardService";
+import DashboardCard from "../components/Dashboard/DashboardCard";
+import ExpensePieChart from "../components/Dashboard/ExpensePieChart";
+import IncomeExpenseBarChart from "../components/Dashboard/IncomeExpenseBarChart";
+import "../Dashboard.css";
+import { useDateContext } from "../context/DateContext";
+
 function Dashboard(){
 
 const [totalBudget, setTotalBudget] = useState(0);
@@ -9,21 +15,27 @@ const [totalExpense, setTotalExpense] = useState(0);
 const [transactions, setTransactions] = useState([]);
 const [totalIncome, setTotalIncome] = useState(0);
 const [balance, setBalance] = useState(0);
-const [month, setMonth] = useState(new Date().getMonth() + 1);
-const [year, setYear] = useState(new Date().getFullYear());
+const [remainingBudget, setRemainingBudget] = useState(0);
+const [overspentAmount, setOverspentAmount] = useState(0);
+const {
+    globalMonth,
+    globalYear,
+    setGlobalMonth,
+    setGlobalYear,
+} = useDateContext();
 useEffect(() => {
 
     fetchDashboard();
 
-}, [month, year]);
+}, [globalMonth, globalYear]);
 
 const fetchDashboard = async () => {
 
     try {
 
         const dashboardRes = await getDashboardSummary(
-            month,
-            year
+            globalMonth,
+            globalYear
         );
 
         setTotalIncome(
@@ -42,6 +54,14 @@ const fetchDashboard = async () => {
             dashboardRes.current_balance
         );
 
+        setRemainingBudget(
+            dashboardRes.remaining_budget
+        );
+
+        setOverspentAmount(
+            dashboardRes.overspent_amount
+        );
+
         setTransactions(
             dashboardRes.recent_transactions
         );
@@ -56,75 +76,27 @@ const fetchDashboard = async () => {
 
 };
 
-
 return(
 
-<div className="dashboard">
+<MainLayout title="Dashboard">
 
+<div className="dashboard-header">
 
-<div className="sidebar">
+    <h2>
+        👋 Welcome back, {username}
+    </h2>
 
-<h2>💰 BudgetBuddy</h2>
-
-
-<Link to="/dashboard">📊 Dashboard</Link>
-
-<Link to="/income">💵 Income</Link>
-
-<Link to="/expenses">💳 Expenses</Link>
-
-<Link to="/budgets">📒 Budgets</Link>
-
-<Link to="/savings">🏦 Savings</Link>
-
-<Link to="/reports">📈 Reports</Link>
-
-<Link to="/notifications">🔔 Notifications</Link>
-
-<Link to="/settings">⚙️ Settings</Link>
-
-<button
-
-onClick={()=>{
-
-localStorage.clear();
-
-window.location.href="/";
-
-}}
-
->
-
-Logout
-
-</button>
-
+    <p>
+        Here's your financial overview.
+    </p>
 
 </div>
 
-<div className="content">
-
-
-<h1>
-Welcome Back {username} 👋
-</h1>
-
-
-<p>
-Manage your money smarter with BudgetBuddy
-</p>
-
-<div
-    style={{
-        display: "flex",
-        gap: "15px",
-        marginBottom: "20px",
-    }}
->
+<div className="filter-card">
 
     <select
-        value={month}
-        onChange={(e) => setMonth(Number(e.target.value))}
+        value={globalMonth}
+        onChange={(e) => setGlobalMonth(Number(e.target.value))}
     >
 
         {
@@ -157,8 +129,8 @@ Manage your money smarter with BudgetBuddy
 
     <input
         type="number"
-        value={year}
-        onChange={(e) => setYear(Number(e.target.value))}
+        value={globalYear}
+        onChange={(e) => setGlobalYear(Number(e.target.value))}
     />
 
 </div>
@@ -168,42 +140,25 @@ Manage your money smarter with BudgetBuddy
 <div className="cards">
 
 
-<div className="card">
+<DashboardCard icon="💵" title="Income" value={`₹${totalIncome}`} />
 
-<h2>💵 Income</h2>
+<DashboardCard icon="💳" title="Expenses" value={`₹${totalExpense}`} />
 
-<h1>₹{totalIncome}</h1>
+<DashboardCard icon="📒" title="Budget" value={`₹${totalBudget}`} />
+
+<DashboardCard icon="💰" title="Balance" value={`₹${balance}`} />
+
 
 </div>
 
+<div className="dashboard-charts">
 
+<ExpensePieChart transactions={transactions} />
 
-<div className="card">
-
-<h2>💳 Expenses</h2>
-
-<h1>₹{totalExpense}</h1>
-
-</div>
-
-
-<div className="card">
-
-    <h2>📒 Budget</h2>
-
-    <h1>₹{totalBudget}</h1>
-
-</div>
-
-
-<div className="card">
-
-<h2>💰 Balance</h2>
-
-<h1>₹{balance}</h1>
-
-</div>
-
+<IncomeExpenseBarChart
+totalIncome={totalIncome}
+totalExpense={totalExpense}
+/>
 
 </div>
 
@@ -264,11 +219,7 @@ transactions
 
 </div>
 
-</div>
-
-
-
-</div>
+</MainLayout>
 
 )
 

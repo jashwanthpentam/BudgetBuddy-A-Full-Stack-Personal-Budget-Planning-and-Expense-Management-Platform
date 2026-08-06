@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import MainLayout from "../layouts/MainLayout";
 import API from "../services/api";
 import { getDashboardSummary } from "../services/dashboardService";
+import useModuleDate from "../hooks/useModuleDate";
+
 export default function Budgets() {
 
   const [budgets, setBudgets] = useState([]);
@@ -20,8 +23,13 @@ export default function Budgets() {
     remaining_budget: 0,
     overspent_amount: 0,
   });
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  
+  const {
+    month,
+    year,
+    setMonth,
+    setYear,
+  } = useModuleDate();
 
 
   useEffect(() => {
@@ -226,7 +234,7 @@ export default function Budgets() {
 
 return (
 
-<div className="content">
+<MainLayout title="Budgets">
 
 <h1 className="page-title">
     Budget Planning
@@ -526,7 +534,7 @@ Delete
 
 </div>
 
-</div>
+</MainLayout>
 
 );
 

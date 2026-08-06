@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
+import MainLayout from "../layouts/MainLayout";
 import API from "../services/api";
+import useModuleDate from "../hooks/useModuleDate";
 import { getDashboardSummary } from "../services/dashboardService";
+
+
+
 export default function Income() {
 
   const [incomes, setIncomes] = useState([]);
@@ -18,8 +23,17 @@ export default function Income() {
   const [sourceFilter, setSourceFilter] = useState("");
 
   const [sortBy, setSortBy] = useState("latest");
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const {
+
+    month,
+
+    year,
+
+    setMonth,
+
+    setYear,
+
+  } = useModuleDate();
 
   useEffect(() => {
 
@@ -182,7 +196,7 @@ const editIncome = (income) => {
 
 return (
 
-  <div className="content">
+  <MainLayout title="Income">
 
     <h1 className="page-title">
       Income Management
@@ -502,7 +516,7 @@ return (
 
     </div>
 
-  </div>
+  </MainLayout>
 
 );
 

@@ -7,9 +7,9 @@ from .serializers import BudgetSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.db.models import Sum
-from rest_framework.decorators import api_view, permission_classes
-
+from notifications.utils import create_notification
 from expenses.models import Expense
+from .utils import recalculate_budget_alert
 
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
@@ -61,7 +61,20 @@ class BudgetViewSet(viewsets.ModelViewSet):
                 )
             })
 
-        serializer.save(user=self.request.user)
+        budget = serializer.save(user=self.request.user)
+
+        create_notification(
+            user=self.request.user,
+            title="Budget Created",
+            message=(
+                f"Your {budget.category} budget "
+                f"for {budget.month}/{budget.year} "
+                "has been created successfully."
+            ),
+            notification_type="budget",
+        )
+
+    
 
     def perform_update(self, serializer):
 
@@ -105,7 +118,27 @@ class BudgetViewSet(viewsets.ModelViewSet):
                 )
             })
 
-        serializer.save()
+        budget.warning_80_sent = False
+        budget.warning_90_sent = False
+        budget.warning_100_sent = False
+        budget.warning_exceeded_sent = False
+
+        budget = serializer.save()
+
+        recalculate_budget_alert(
+                self.request.user,
+                budget
+            )
+        create_notification(
+            user=self.request.user,
+            title="Budget Updated",
+            message=(
+                f"Your {budget.category} budget "
+                f"for {budget.month}/{budget.year} "
+                "has been updated successfully."
+            ),
+            notification_type="budget",
+        )
 
 
 
@@ -179,4 +212,83 @@ def overall_budget_summary(request):
         "remaining_budget": remaining_budget,
         "overspent_amount": overspent_amount
 
+    })
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def budget_alert(request, budget_id):
+
+    try:
+        budget = Budget.objects.get(
+            id=budget_id,
+            user=request.user
+        )
+    except Budget.DoesNotExist:
+        return Response(
+            {"error": "Budget not found"},
+            status=404
+        )
+
+    total_expense = Expense.objects.filter(
+        user=request.user,
+        category=budget.category,
+        expense_date__month=budget.month,
+        expense_date__year=budget.year
+    ).aggregate(
+        total=Sum("amount")
+    )["total"] or 0
+
+    budget_amount = budget.budget_amount
+
+    remaining_budget = budget_amount - total_expense
+
+    overspent_amount = 0
+    if remaining_budget < 0:
+        overspent_amount = abs(remaining_budget)
+        remaining_budget = 0
+
+    usage_percentage = (
+        (total_expense / budget_amount) * 100
+        if budget_amount > 0 else 0
+    )
+
+    threshold = int(usage_percentage // 10) * 10
+
+    if usage_percentage < 50:
+        status = "Safe"
+        message = "Your spending is within the budget."
+
+    elif usage_percentage < 75:
+        status = "Notify"
+        message = (
+            f"You have used {round(usage_percentage, 2)}% "
+            "of your budget."
+        )
+
+    elif usage_percentage < 100:
+        status = "Warning"
+        message = (
+            f"You have used {round(usage_percentage, 2)}% "
+            "of your budget. Consider reducing expenses."
+        )
+
+    elif 100 <= usage_percentage < 110:
+        status = "Exceeded"
+        message = "You have reached your budget limit."
+
+    else:
+        status = "Exceeded"
+        message = (
+            f"You have exceeded your budget by ₹{overspent_amount}."
+        )
+
+    return Response({
+        "budget_amount": budget_amount,
+        "total_expense": total_expense,
+        "remaining_budget": remaining_budget,
+        "overspent_amount": overspent_amount,
+        "usage_percentage": round(usage_percentage, 2),
+        "threshold": threshold,
+        "status": status,
+        "message": message
     })

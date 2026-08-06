@@ -2,12 +2,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Sum
 from rest_framework import generics, permissions
+from rest_framework.exceptions import ValidationError
+
 from .models import Expense
 from .serializers import ExpenseSerializer
-from rest_framework.exceptions import ValidationError
-from datetime import datetime
 
 from budgets.models import Budget
+from budgets.utils import recalculate_budget_alert
+
 
 class ExpenseListCreateView(generics.ListCreateAPIView):
 
@@ -45,10 +47,11 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
 
         return queryset
 
+    
+
     def perform_create(self, serializer):
 
         category = serializer.validated_data["category"]
-        amount = serializer.validated_data["amount"]
         expense_date = serializer.validated_data["expense_date"]
 
         month = expense_date.month
@@ -72,34 +75,20 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
                 f"No budget created for {category} in {month}/{year}."
             })
 
-    # Calculate total spent in this category this month
+    
 
-        total_spent = Expense.objects.filter(
-            user=self.request.user,
-            category=category,
-            expense_date__month=month,
-            expense_date__year=year
-        ).aggregate(
-            total=Sum("amount")
-        )["total"] or 0
+        serializer.save(
+            user=self.request.user
+        )
+        
+        recalculate_budget_alert(
+            self.request.user,
+            budget
+        )
 
-        remaining_budget = budget.budget_amount - total_spent
+    
 
-        if amount > remaining_budget:
-
-            raise ValidationError({
-
-                "error":
-                (
-                    f"Budget exceeded!\n\n"
-                    f"Budget : ₹{budget.budget_amount}\n"
-                    f"Spent : ₹{total_spent}\n"
-                    f"Remaining : ₹{remaining_budget}"
-                )
-
-            })
-
-        serializer.save(user=self.request.user)
+    
 
 
 class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -111,6 +100,47 @@ class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Expense.objects.filter(
             user=self.request.user
         )
+
+    def perform_update(self, serializer):
+
+        expense = serializer.save()
+
+        try:
+            budget = Budget.objects.get(
+                user=self.request.user,
+                category=expense.category,
+                month=expense.expense_date.month,
+                year=expense.expense_date.year
+            )
+
+            recalculate_budget_alert(
+                self.request.user,
+                budget
+            )
+
+        except Budget.DoesNotExist:
+            pass
+
+    def perform_destroy(self, instance):
+
+        try:
+            budget = Budget.objects.get(
+                user=self.request.user,
+                category=instance.category,
+                month=instance.expense_date.month,
+                year=instance.expense_date.year
+            )
+
+        except Budget.DoesNotExist:
+            budget = None
+
+        instance.delete()
+
+        if budget:
+            recalculate_budget_alert(
+                self.request.user,
+                budget
+            )
 
 
 class TotalExpenseView(APIView):

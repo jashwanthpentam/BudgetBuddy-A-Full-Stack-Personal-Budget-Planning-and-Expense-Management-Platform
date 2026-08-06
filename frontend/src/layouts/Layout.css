@@ -1,0 +1,202 @@
+/* ==========================
+   APP LAYOUT
+========================== */
+
+.app-layout{
+    display:flex;
+    min-height:100vh;
+    background:#0f172a;
+    color:white;
+}
+
+/* ==========================
+   SIDEBAR
+========================== */
+
+.sidebar{
+    width:270px;
+    background:#111827;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:25px 20px;
+    border-right:1px solid #1f2937;
+    position:sticky;
+    top:0;
+    height:100vh;
+}
+
+.logo-section{
+    margin-bottom:35px;
+}
+
+.logo-section h2{
+    margin:0;
+    color:#22c55e;
+    font-size:28px;
+}
+
+.logo-section p{
+    color:#94a3b8;
+    margin-top:6px;
+    font-size:14px;
+}
+
+/* ==========================
+   NAVIGATION
+========================== */
+
+.sidebar-nav{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    flex:1;
+}
+
+.nav-link{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:14px 16px;
+    border-radius:12px;
+    color:#cbd5e1;
+    text-decoration:none;
+    transition:.25s;
+    font-size:16px;
+}
+
+.nav-link:hover{
+    background:#1e293b;
+    color:white;
+}
+
+.nav-link.active{
+    background:#22c55e;
+    color:white;
+}
+
+/* ==========================
+   LOGOUT
+========================== */
+
+.logout-btn{
+    margin-top:30px;
+    width:100%;
+    border:none;
+    border-radius:12px;
+    padding:14px;
+    background:#ef4444;
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.logout-btn:hover{
+    background:#dc2626;
+}
+
+/* ==========================
+   RIGHT SECTION
+========================== */
+
+.main-section{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    overflow:auto;
+}
+
+/* ==========================
+   TOP NAVBAR
+========================== */
+
+.top-navbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:24px 40px;
+    background:#111827;
+    border-bottom:1px solid #1f2937;
+}
+
+.page-heading{
+    margin:0;
+    font-size:28px;
+    color:white;
+}
+
+.page-date{
+    color:#94a3b8;
+    margin-top:6px;
+    font-size:14px;
+}
+
+.user-section{
+    display:flex;
+    align-items:center;
+    gap:18px;
+}
+
+.notification{
+    width:45px;
+    height:45px;
+    border-radius:50%;
+    background:#1e293b;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:20px;
+    cursor:pointer;
+}
+
+.user-info{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+}
+
+.welcome{
+    color:#94a3b8;
+    font-size:13px;
+}
+
+/* ==========================
+   CONTENT
+========================== */
+
+.page-content{
+    padding:35px;
+    flex:1;
+    overflow:auto;
+}
+
+/* ==========================
+   RESPONSIVE
+========================== */
+
+@media(max-width:900px){
+
+.sidebar{
+    width:85px;
+}
+
+.logo-section p,
+.nav-link span:last-child,
+.logout-btn{
+    display:none;
+}
+
+.logo-section{
+    text-align:center;
+}
+
+.top-navbar{
+    padding:20px;
+}
+
+.page-content{
+    padding:20px;
+}
+
+}
