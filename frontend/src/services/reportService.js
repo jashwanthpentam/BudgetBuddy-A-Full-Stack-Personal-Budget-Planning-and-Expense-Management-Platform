@@ -28,3 +28,12 @@ export const downloadPDFReport = async ({ startDate, endDate }) => {
         }
     );
 };
+export const downloadExcelReport = async ({ startDate, endDate }) => {
+
+    return await API.get(
+        `/reports/export/excel/?start_date=${startDate}&end_date=${endDate}`,
+        {
+            responseType: "blob",
+        }
+    );
+};

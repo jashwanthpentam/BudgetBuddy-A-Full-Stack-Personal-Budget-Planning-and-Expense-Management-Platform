@@ -11,6 +11,7 @@ from .views import (
 from .exports import(
     ExportJSONView,
     ExportPDFView,
+    ExportExcelView,
 )
 
 urlpatterns = [
@@ -55,5 +56,11 @@ urlpatterns = [
         "export/pdf/",
         ExportPDFView.as_view(),
         name="export-pdf",
+    ),
+
+    path(
+        "export/excel/",
+        ExportExcelView.as_view(),
+        name="export-excel",
     ),
 ]

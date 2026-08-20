@@ -1,30 +1,34 @@
 import axios from "axios";
 
 const API = axios.create({
-    baseURL: "http://127.0.0.1:8000/api",
+    baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
-API.interceptors.request.use((config) => {
+API.interceptors.request.use(
+    (config) => {
+        const publicRoutes = [
+            "/users/register/",
+            "/token/",
+            "/token/refresh/",
+        ];
 
-    const publicRoutes = [
-        "/users/register/",
-        "/token/",
-        "/token/refresh/",
-    ];
+        const isPublic = publicRoutes.some((route) =>
+            config.url?.endsWith(route)
+        );
 
-    const isPublic = publicRoutes.some(route =>
-        config.url.endsWith(route)
-    );
+        if (!isPublic) {
+            // IMPORTANT:
+            // Existing application stores JWT under "access"
+            const token = localStorage.getItem("access");
 
-    if (!isPublic) {
-        const token = localStorage.getItem("access");
-
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
         }
-    }
 
-    return config;
-});
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
 
 export default API;

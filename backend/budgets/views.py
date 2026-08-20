@@ -16,7 +16,33 @@ class BudgetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Budget.objects.filter(user=self.request.user)
+        queryset = Budget.objects.filter(
+            user=self.request.user
+        )
+
+        # Optional period filter for the Budgets page.
+        # When month/year are supplied, return only budgets
+        # belonging to that selected period.
+        month = self.request.query_params.get("month")
+        year = self.request.query_params.get("year")
+
+        if month:
+            try:
+                month = int(month)
+                if 1 <= month <= 12:
+                    queryset = queryset.filter(month=month)
+            except (TypeError, ValueError):
+                pass
+
+        if year:
+            try:
+                year = int(year)
+                if year > 0:
+                    queryset = queryset.filter(year=year)
+            except (TypeError, ValueError):
+                pass
+
+        return queryset
 
     def perform_create(self, serializer):
 

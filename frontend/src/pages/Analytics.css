@@ -1,0 +1,761 @@
+/* =========================================================
+   BUDGETBUDDY - ANALYTICS
+   Premium Dark Dashboard
+========================================================= */
+
+.analytics-page {
+    width: 100%;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding-bottom: 40px;
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.analytics-header {
+    width: 100%;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+
+    gap: 25px;
+
+    margin-bottom: 24px;
+}
+
+.analytics-header h1 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 30px;
+    font-weight: 750;
+
+    letter-spacing: -0.5px;
+
+    user-select: none;
+}
+
+.analytics-header p {
+    margin: 6px 0 0;
+
+    color: #8290a7;
+
+    font-size: 12px;
+
+    user-select: none;
+}
+
+.analytics-period {
+    display: flex;
+    gap: 8px;
+
+    background: #17233a;
+
+    border: 1px solid #2b3b56;
+
+    border-radius: 10px;
+
+    padding: 8px;
+}
+
+.analytics-period select,
+.analytics-period input {
+    background: #101a2d;
+
+    color: #dce4ef;
+
+    border: 1px solid #34445e;
+
+    border-radius: 7px;
+
+    padding: 8px 10px;
+
+    outline: none;
+
+    font-size: 11px;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.analytics-period select {
+    min-width: 105px;
+}
+
+.analytics-period input {
+    width: 65px;
+}
+
+.analytics-period select:focus,
+.analytics-period input:focus {
+    border-color: #8b6be8;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(139, 107, 232, 0.1);
+}
+
+.analytics-period select,
+.analytics-period input {
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.analytics-stat-grid {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+
+    gap: 14px;
+
+    margin-bottom: 20px;
+}
+
+.analytics-stat-card {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    min-height: 75px;
+
+    padding: 15px;
+
+    background: #17233a;
+
+    border: 1px solid #293a57;
+
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.analytics-stat-card:hover {
+    transform: translateY(-2px);
+
+    border-color: #40526e;
+
+    box-shadow:
+        0 10px 24px
+        rgba(0, 0, 0, 0.22);
+}
+
+
+/* Top accent */
+
+.analytics-stat-card::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+    right: 0;
+
+    height: 2px;
+
+    background: #8b6be8;
+}
+
+.analytics-stat-card:nth-child(1)::before {
+    background: #36c98f;
+}
+
+.analytics-stat-card:nth-child(2)::before {
+    background: #ef6666;
+}
+
+.analytics-stat-card:nth-child(3)::before {
+    background: #8b6be8;
+}
+
+.analytics-stat-card:nth-child(4)::before {
+    background: #3ba7d9;
+}
+
+.analytics-stat-card:nth-child(5)::before {
+    background: #e6a33e;
+}
+
+.analytics-stat-card:nth-child(6)::before {
+    background: #36c98f;
+}
+
+.analytics-stat-card:nth-child(7)::before {
+    background: #3ba7d9;
+}
+
+.analytics-stat-card:nth-child(8)::before {
+    background: #6978f5;
+}
+
+
+/* Icon */
+
+.stat-icon {
+    width: 38px;
+    height: 38px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 9px;
+
+    background: #20304a;
+
+    font-size: 15px;
+
+    user-select: none;
+}
+
+.analytics-stat-card p {
+    margin: 0;
+
+    color: #8190a8;
+
+    font-size: 10px;
+
+    user-select: none;
+}
+
+.analytics-stat-card h2 {
+    margin: 3px 0 0;
+
+    color: #ffffff;
+
+    font-size: 16px;
+
+    font-weight: 750;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   IMPORTANT GRID FIX
+========================================================= */
+
+.analytics-grid {
+    width: 100%;
+
+    display: grid;
+
+    gap: 16px;
+
+    margin-bottom: 16px;
+
+    box-sizing: border-box;
+}
+
+
+/* THIS FIXES THE EMPTY SPACE */
+
+.analytics-grid.two-columns {
+    width: 100%;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    align-items: stretch;
+}
+
+
+/* =========================================================
+   ANALYTICS CARD
+========================================================= */
+
+.analytics-card {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    background: #17233a;
+
+    border: 1px solid #293a57;
+
+    border-radius: 14px;
+
+    padding: 18px;
+
+    box-shadow:
+        0 8px 22px
+        rgba(0, 0, 0, 0.16);
+
+    transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+
+    overflow: hidden;
+}
+
+.analytics-card:hover {
+    border-color: #3b4d69;
+}
+
+.analytics-card-header {
+    margin-bottom: 12px;
+}
+
+.analytics-card-header h2 {
+    margin: 0;
+
+    color: #ffffff;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    user-select: none;
+}
+
+.analytics-card-header p {
+    margin: 4px 0 0;
+
+    color: #7f8da4;
+
+    font-size: 9px;
+
+    user-select: none;
+}
+
+
+/* =========================================================
+   PIE CHART AREA
+========================================================= */
+
+/*
+   Keeps both pie charts visually balanced
+*/
+
+.analytics-card .recharts-responsive-container {
+    min-height: 250px;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.analytics-empty {
+    width: 100%;
+
+    min-height: 250px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    text-align: center;
+
+    color: #7f8da4;
+
+    border: 1px dashed #34445e;
+
+    border-radius: 10px;
+
+    background: #111c30;
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   SAVINGS GOALS
+========================================================= */
+
+.goal-list {
+    width: 100%;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 18px;
+
+    padding: 8px 0;
+}
+
+.goal-item {
+    width: 100%;
+
+    padding: 12px;
+
+    box-sizing: border-box;
+
+    background: #111c30;
+
+    border: 1px solid #293a57;
+
+    border-radius: 10px;
+
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease;
+}
+
+.goal-item:hover {
+    background: #142138;
+
+    border-color: #3c4e6b;
+}
+
+.goal-top {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 9px;
+}
+
+.goal-top strong {
+    color: #ffffff;
+
+    font-size: 12px;
+
+    user-select: none;
+}
+
+.goal-top span {
+    color: #4de0a4;
+
+    font-size: 11px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   PROGRESS
+========================================================= */
+
+.progress-track {
+    width: 100%;
+
+    height: 8px;
+
+    background: #0c1628;
+
+    border-radius: 999px;
+
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+
+    background: #8b6be8;
+
+    border-radius: 999px;
+
+    transition:
+        width 0.5s ease;
+}
+
+.goal-meta {
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-top: 7px;
+
+    color: #718098;
+
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   BUDGET + SAVINGS ROW
+========================================================= */
+
+/*
+   Force both cards to have equal visual height.
+*/
+
+.analytics-grid.two-columns
+.analytics-card {
+    min-height: 370px;
+}
+
+
+/* =========================================================
+   SAVINGS GOAL EMPTY SPACE FIX
+========================================================= */
+
+.analytics-grid.two-columns
+.analytics-card:nth-child(2) {
+    display: flex;
+
+    flex-direction: column;
+}
+
+.analytics-grid.two-columns
+.analytics-card:nth-child(2)
+.goal-list {
+    flex: 1;
+}
+
+
+/* =========================================================
+   INSIGHTS
+========================================================= */
+
+.insights-card {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    background: #17233a;
+
+    border: 1px solid #30466b;
+
+    border-radius: 14px;
+
+    padding: 19px;
+
+    margin-top: 2px;
+
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 8px 22px
+        rgba(0, 0, 0, 0.16);
+}
+
+.insights-card h2 {
+    margin: 0 0 15px;
+
+    color: #ffffff;
+
+    font-size: 15px;
+
+    user-select: none;
+}
+
+.insight-list {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+}
+
+.insight-item {
+    display: flex;
+
+    gap: 9px;
+
+    align-items: flex-start;
+
+    padding: 10px 12px;
+
+    background: #101a2d;
+
+    border: 1px solid #263852;
+
+    border-radius: 8px;
+}
+
+.insight-item span {
+    color: #4de0a4;
+
+    font-size: 15px;
+
+    line-height: 15px;
+}
+
+.insight-item p {
+    margin: 0;
+
+    color: #aeb9c9;
+
+    font-size: 10px;
+
+    line-height: 1.5;
+}
+
+
+/* =========================================================
+   LOADING / ERROR
+========================================================= */
+
+.analytics-state {
+    min-height: 400px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: #8492a8;
+
+    gap: 15px;
+}
+
+.analytics-state.error {
+    color: #f87171;
+}
+
+.analytics-state button {
+    background: #8b6be8;
+
+    color: #ffffff;
+
+    border: none;
+
+    border-radius: 8px;
+
+    padding: 9px 18px;
+
+    cursor: pointer;
+
+    font-size: 11px;
+
+    font-weight: 700;
+}
+
+.analytics-state button:hover {
+    background: #7959d9;
+}
+
+
+/* =========================================================
+   CHART TOOLTIP
+========================================================= */
+
+.recharts-tooltip-wrapper {
+    outline: none;
+}
+
+.recharts-default-tooltip {
+    background: #101a2d !important;
+
+    border: 1px solid #34445e !important;
+
+    border-radius: 8px !important;
+
+    box-shadow:
+        0 8px 20px
+        rgba(0, 0, 0, 0.3);
+}
+
+
+/* =========================================================
+   CURSOR
+========================================================= */
+
+.analytics-page button,
+.analytics-page select {
+    cursor: pointer;
+}
+
+.analytics-page input {
+    cursor: text;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1150px) {
+
+    .analytics-stat-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+}
+
+
+@media (max-width: 900px) {
+
+    .analytics-grid.two-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .analytics-grid.two-columns
+    .analytics-card {
+        min-height: auto;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .analytics-header {
+        flex-direction: column;
+
+        align-items: flex-start;
+    }
+
+    .analytics-period {
+        width: 100%;
+
+        box-sizing: border-box;
+    }
+
+    .analytics-period select,
+    .analytics-period input {
+        flex: 1;
+    }
+
+    .analytics-stat-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+}
+
+
+@media (max-width: 480px) {
+
+    .analytics-stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .analytics-header h1 {
+        font-size: 25px;
+    }
+
+    .analytics-card {
+        padding: 14px;
+    }
+
+}

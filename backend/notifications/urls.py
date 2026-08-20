@@ -4,6 +4,7 @@ from .views import (
     NotificationListCreateView,
     NotificationDetailView,
     MarkAsReadAPIView,
+    NotificationPreferenceView,
 )
 
 urlpatterns = [
@@ -21,5 +22,10 @@ urlpatterns = [
     path(
         "<int:pk>/read/",
         MarkAsReadAPIView.as_view(),
+    ),
+
+    path(
+        "preferences/",
+        NotificationPreferenceView.as_view(),
     ),
 ]

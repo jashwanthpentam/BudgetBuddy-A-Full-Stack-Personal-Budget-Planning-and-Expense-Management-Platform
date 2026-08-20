@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import API from "../services/api";
 import { getDashboardSummary } from "../services/dashboardService";
 import useModuleDate from "../hooks/useModuleDate";
+import { toast, confirmAction } from "./toast";
+import "./Budgets.css";
 
 export default function Budgets() {
-
   const [budgets, setBudgets] = useState([]);
 
   const [form, setForm] = useState({
@@ -23,7 +24,15 @@ export default function Budgets() {
     remaining_budget: 0,
     overspent_amount: 0,
   });
-  
+
+  const [selectedSummary, setSelectedSummary] = useState(null);
+
+  const [selectedBudget, setSelectedBudget] = useState(null);
+
+  const [showSummary, setShowSummary] = useState(false);
+
+  const [searchTerm, setSearchTerm] = useState("");
+
   const {
     month,
     year,
@@ -32,510 +41,1253 @@ export default function Budgets() {
   } = useModuleDate();
 
 
+  /* =====================================================
+     CONSTANTS
+  ===================================================== */
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const categories = [
+    {
+      value: "FOOD",
+      label: "Food",
+    },
+    {
+      value: "TRAVEL",
+      label: "Travel",
+    },
+    {
+      value: "SHOPPING",
+      label: "Shopping",
+    },
+    {
+      value: "EDUCATION",
+      label: "Education",
+    },
+    {
+      value: "ENTERTAINMENT",
+      label: "Entertainment",
+    },
+    {
+      value: "HEALTHCARE",
+      label: "Healthcare",
+    },
+    {
+      value: "BILLS",
+      label: "Bills",
+    },
+    {
+      value: "MISCELLANEOUS",
+      label: "Miscellaneous",
+    },
+  ];
+
+
+  /* =====================================================
+     FETCH
+  ===================================================== */
+
   useEffect(() => {
-
     fetchBudgets();
-
     fetchOverallSummary();
-
   }, [month, year]);
 
-  // -----------------------------
-  // Fetch Budgets
-  // -----------------------------
+
   const fetchBudgets = async () => {
-
     try {
+      // Fetch only the budgets for the currently selected
+      // month and year. The backend also enforces the
+      // authenticated-user filter.
+      const res = await API.get("/budgets/", {
+        params: {
+          month,
+          year,
+        },
+      });
 
-        const res = await API.get("/budgets/");
-
-        setBudgets(res.data);
-
-        // Automatically show first budget summary
-
+      setBudgets(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-
-        console.log(err);
-
+      console.error("Failed to fetch budgets:", err);
+      setBudgets([]);
     }
+  };
 
-};
 
-  // -----------------------------
-  // Save Budget
-  // -----------------------------
+  const fetchOverallSummary = async () => {
+    try {
+      const data = await getDashboardSummary(
+        month,
+        year
+      );
+
+      setSummary({
+        budget_amount: Number(data.total_budget || 0),
+        total_expense: Number(data.total_expense || 0),
+        remaining_budget: Number(
+          data.remaining_budget || 0
+        ),
+        overspent_amount: Number(
+          data.overspent_amount || 0
+        ),
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+
+  /* =====================================================
+     SAVE BUDGET
+  ===================================================== */
+
   const saveBudget = async () => {
-
     if (
       !form.category ||
       !form.budget_amount ||
       !form.month ||
       !form.year
     ) {
-      alert("Please fill all required fields.");
+      toast.warning("Please fill all required fields.");
       return;
     }
 
     if (Number(form.budget_amount) <= 0) {
-      alert("Budget amount must be greater than 0.");
+      toast.warning("Budget amount must be greater than 0.");
       return;
     }
 
     try {
-
       if (editingId) {
-
         await API.put(
           `/budgets/${editingId}/`,
           form
         );
 
-        alert("Budget Updated Successfully");
-
-        setEditingId(null);
-
+        toast.success("Budget Updated Successfully");
       } else {
-
         await API.post(
           "/budgets/",
           form
         );
 
-        alert("Budget Added Successfully");
-
+        toast.success("Budget Added Successfully");
       }
 
-      setForm({
-        category: "",
-        budget_amount: "",
-        month: "",
-        year: new Date().getFullYear(),
-      });
+      resetForm();
 
       fetchBudgets();
       fetchOverallSummary();
 
     } catch (err) {
-
       console.log(err);
 
       if (err.response?.data) {
+        const message =
+          err.response?.data?.error ||
+          err.response?.data?.detail ||
+          (typeof err.response?.data === "string"
+            ? err.response.data
+            : "Operation Failed");
 
-        alert(
-          JSON.stringify(err.response.data)
-        );
-
+        toast.error(message);
       } else {
-
-        alert("Operation Failed");
-
+        toast.error("Operation Failed");
       }
-
     }
-
   };
 
-  // -----------------------------
-  // Delete Budget
-  // -----------------------------
-  const deleteBudget = async (id) => {
 
-    if (!window.confirm("Delete this budget?"))
+  /* =====================================================
+     RESET FORM
+  ===================================================== */
+
+  const resetForm = () => {
+    setForm({
+      category: "",
+      budget_amount: "",
+      month: "",
+      year: new Date().getFullYear(),
+    });
+
+    setEditingId(null);
+  };
+
+
+  /* =====================================================
+     DELETE
+  ===================================================== */
+
+  const deleteBudget = async (id) => {
+    const confirmed = await confirmAction(
+      "Are you sure you want to delete this budget?",
+      "Delete budget",
+      "Delete"
+    );
+
+    if (!confirmed) {
       return;
+    }
 
     try {
-
-      await API.delete(`/budgets/${id}/`);
+      await API.delete(
+        `/budgets/${id}/`
+      );
 
       fetchBudgets();
       fetchOverallSummary();
 
-      alert("Budget Deleted Successfully");
+      toast.success("Budget Deleted Successfully");
 
     } catch (err) {
-
       console.log(err);
-
-      alert("Delete Failed");
-
+      toast.error("Delete Failed");
     }
-
   };
 
-  // -----------------------------
-  // Edit Budget
-  // -----------------------------
-  const editBudget = (budget) => {
 
+  /* =====================================================
+     EDIT
+  ===================================================== */
+
+  const editBudget = (budget) => {
     setEditingId(budget.id);
 
     setForm({
-
       category: budget.category,
-
       budget_amount: budget.budget_amount,
-
       month: budget.month,
-
       year: budget.year,
-
     });
 
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
-  // -----------------------------
-  // Budget Summary
-  // -----------------------------
-  const fetchSummary = async (id) => {
 
+  /* =====================================================
+     VIEW SUMMARY
+  ===================================================== */
+
+  const fetchSummary = async (budget) => {
     try {
-
       const res = await API.get(
-        `/budgets/${id}/summary/`
+        `/budgets/${budget.id}/summary/`
       );
 
-      setSummary(res.data);
+      setSelectedBudget(budget);
+      setSelectedSummary(res.data);
+      setShowSummary(true);
 
     } catch (err) {
-
       console.log(err);
+      toast.error("Unable to load budget summary.");
+    }
+  };
 
+
+  /* =====================================================
+     FORMAT
+  ===================================================== */
+
+  const formatAmount = (amount) => {
+    return Number(amount || 0).toLocaleString(
+      "en-IN",
+      {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }
+    );
+  };
+
+
+  const getCategoryLabel = (category) => {
+    const found = categories.find(
+      (item) => item.value === category
+    );
+
+    return found
+      ? found.label
+      : category || "Unknown";
+  };
+
+
+  const getCategoryClass = (category) => {
+    return `budget-category-${(
+      category || "miscellaneous"
+    ).toLowerCase()}`;
+  };
+
+
+  /* =====================================================
+     FILTERED BUDGETS
+  ===================================================== */
+
+  const filteredBudgets = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return budgets;
     }
 
-};
+    const search =
+      searchTerm.toLowerCase();
 
-  const fetchOverallSummary = async () => {
+    return budgets.filter((budget) => {
+      const category =
+        getCategoryLabel(
+          budget.category
+        ).toLowerCase();
 
-    try {
+      const monthName =
+        monthNames[
+          Number(budget.month) - 1
+        ]?.toLowerCase() || "";
 
-        const summary = await getDashboardSummary(
-            month,
-            year
-        );
+      return (
+        category.includes(search) ||
+        monthName.includes(search) ||
+        String(budget.year).includes(search) ||
+        String(
+          budget.budget_amount
+        ).includes(search)
+      );
+    });
+  }, [budgets, searchTerm]);
 
-        setSummary({
 
-            budget_amount: summary.total_budget,
-            total_expense: summary.total_expense,
-            remaining_budget: summary.remaining_budget,
-            overspent_amount: summary.overspent_amount,
+  /* =====================================================
+     OVERALL UTILIZATION
+  ===================================================== */
 
-        });
-
+  const utilization = useMemo(() => {
+    if (
+      Number(summary.budget_amount) <= 0
+    ) {
+      return 0;
     }
 
-    catch (err) {
+    return Math.min(
+      100,
+      Math.round(
+        (Number(summary.total_expense) /
+          Number(summary.budget_amount)) *
+          100
+      )
+    );
+  }, [summary]);
 
-        console.log(err);
 
-    }
+  /* =====================================================
+     STATUS
+  ===================================================== */
 
-};
+  const budgetStatus =
+    Number(summary.overspent_amount) > 0
+      ? "Overspent"
+      : Number(summary.remaining_budget) <=
+        Number(summary.budget_amount) * 0.2
+      ? "Near Limit"
+      : "On Track";
 
-return (
 
-<MainLayout title="Budgets">
+  return (
+    <MainLayout title="Budgets">
 
-<h1 className="page-title">
-    Budget Planning
-</h1>
+      <div className="budget-page">
 
-{/* Summary Cards */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-<div
-    style={{
-        display: "flex",
-        gap: "15px",
-        marginBottom: "20px",
-    }}
->
+        <div className="budget-header">
 
-    <select
-        value={month}
-        onChange={(e) => setMonth(Number(e.target.value))}
-    >
+          <div>
 
-        {
-            Array.from({ length: 12 }, (_, i) => (
+            <div className="budget-breadcrumb">
+              Finance / Budgets
+            </div>
 
-                <option
-                    key={i + 1}
-                    value={i + 1}
-                >
-                    {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                    ][i]}
+            <h1 className="budget-title">
+              Budget Planning
+            </h1>
+
+            <p className="budget-subtitle">
+              Plan your spending, control expenses
+              and stay within your financial limits.
+            </p>
+
+          </div>
+
+
+          {/* PERIOD */}
+
+          <div className="budget-period-selector">
+
+            <div className="budget-period-label">
+              Viewing
+            </div>
+
+            <div className="budget-period-controls">
+
+              <select
+                value={month}
+                onChange={(e) =>
+                  setMonth(
+                    Number(e.target.value)
+                  )
+                }
+              >
+
+                {monthNames.map(
+                  (name, index) => (
+                    <option
+                      key={index + 1}
+                      value={index + 1}
+                    >
+                      {name}
+                    </option>
+                  )
+                )}
+
+              </select>
+
+
+              <input
+                type="number"
+                value={year}
+                onChange={(e) =>
+                  setYear(
+                    Number(e.target.value)
+                  )
+                }
+              />
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            SUMMARY CARDS
+        ================================================= */}
+
+        <div className="budget-stats">
+
+
+          {/* Budget */}
+
+          <div className="budget-stat-card budget-total">
+
+            <div className="budget-stat-icon">
+              ₹
+            </div>
+
+            <div>
+
+              <span>
+                Total Budget
+              </span>
+
+              <h2>
+                ₹{" "}
+                {formatAmount(
+                  summary.budget_amount
+                )}
+              </h2>
+
+              <small>
+                Planned spending
+              </small>
+
+            </div>
+
+          </div>
+
+
+          {/* Expense */}
+
+          <div className="budget-stat-card budget-spent">
+
+            <div className="budget-stat-icon">
+              ↗
+            </div>
+
+            <div>
+
+              <span>
+                Total Spent
+              </span>
+
+              <h2>
+                ₹{" "}
+                {formatAmount(
+                  summary.total_expense
+                )}
+              </h2>
+
+              <small>
+                {utilization}% of budget used
+              </small>
+
+            </div>
+
+          </div>
+
+
+          {/* Remaining */}
+
+          <div className="budget-stat-card budget-remaining">
+
+            <div className="budget-stat-icon">
+              ✓
+            </div>
+
+            <div>
+
+              <span>
+                Remaining
+              </span>
+
+              <h2>
+                ₹{" "}
+                {formatAmount(
+                  summary.remaining_budget
+                )}
+              </h2>
+
+              <small>
+                Available to spend
+              </small>
+
+            </div>
+
+          </div>
+
+
+          {/* Overspent */}
+
+          <div className="budget-stat-card budget-over">
+
+            <div className="budget-stat-icon">
+              !
+            </div>
+
+            <div>
+
+              <span>
+                Overspent
+              </span>
+
+              <h2>
+                ₹{" "}
+                {formatAmount(
+                  summary.overspent_amount
+                )}
+              </h2>
+
+              <small>
+                {budgetStatus}
+              </small>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            UTILIZATION BAR
+        ================================================= */}
+
+        <div className="budget-progress-card">
+
+          <div className="budget-progress-header">
+
+            <div>
+
+              <h3>
+                Budget Utilization
+              </h3>
+
+              <p>
+                {monthNames[
+                  Number(month) - 1
+                ]}{" "}
+                {year}
+              </p>
+
+            </div>
+
+            <strong>
+              {utilization}%
+            </strong>
+
+          </div>
+
+
+          <div className="budget-progress-track">
+
+            <div
+              className={`budget-progress-fill ${
+                utilization >= 100
+                  ? "danger"
+                  : utilization >= 80
+                  ? "warning"
+                  : "safe"
+              }`}
+              style={{
+                width: `${utilization}%`,
+              }}
+            />
+
+          </div>
+
+
+          <div className="budget-progress-footer">
+
+            <span>
+              ₹{" "}
+              {formatAmount(
+                summary.total_expense
+              )}{" "}
+              spent
+            </span>
+
+            <span>
+              ₹{" "}
+              {formatAmount(
+                summary.budget_amount
+              )}{" "}
+              planned
+            </span>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            FORM
+        ================================================= */}
+
+        <div className="budget-form-card">
+
+          <div className="budget-section-heading">
+
+            <div>
+
+              <h2>
+                {editingId
+                  ? "Update Budget"
+                  : "Create New Budget"}
+              </h2>
+
+              <p>
+                {editingId
+                  ? "Modify your selected budget."
+                  : "Set a spending limit for a category."}
+              </p>
+
+            </div>
+
+
+            {editingId && (
+              <button
+                className="budget-cancel-btn"
+                onClick={resetForm}
+              >
+                Cancel Edit
+              </button>
+            )}
+
+          </div>
+
+
+          <div className="budget-form-grid">
+
+
+            {/* Amount */}
+
+            <div className="budget-field">
+
+              <label>
+                Budget Amount <span>*</span>
+              </label>
+
+              <div className="budget-amount-input">
+
+                <span>₹</span>
+
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={
+                    form.budget_amount
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      budget_amount:
+                        e.target.value,
+                    })
+                  }
+                />
+
+              </div>
+
+            </div>
+
+
+            {/* Category */}
+
+            <div className="budget-field">
+
+              <label>
+                Category <span>*</span>
+              </label>
+
+              <select
+                value={form.category}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    category:
+                      e.target.value,
+                  })
+                }
+              >
+
+                <option value="">
+                  Select category
                 </option>
 
-            ))
-        }
+                {categories.map(
+                  (category) => (
+                    <option
+                      key={category.value}
+                      value={category.value}
+                    >
+                      {category.label}
+                    </option>
+                  )
+                )}
+
+              </select>
 
-    </select>
+            </div>
 
-    <input
-        type="number"
-        value={year}
-        onChange={(e) => setYear(Number(e.target.value))}
-    />
 
-</div>
+            {/* Month */}
 
-<div className="stats">
+            <div className="budget-field">
 
-    <div className="stat-card">
-        <p>Budget Amount</p>
-        <h2>₹ {summary.budget_amount}</h2>
-    </div>
+              <label>
+                Budget Month <span>*</span>
+              </label>
 
-    <div className="stat-card">
-        <p>Total Expense</p>
-        <h2>₹ {summary.total_expense}</h2>
-    </div>
+              <select
+                value={form.month}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    month:
+                      e.target.value,
+                  })
+                }
+              >
 
-    <div className="stat-card">
-        <p>Remaining</p>
-        <h2>₹ {summary.remaining_budget}</h2>
-    </div>
+                <option value="">
+                  Select month
+                </option>
 
-    <div className="stat-card">
-        <p>Overspent</p>
-        <h2>₹ {summary.overspent_amount}</h2>
-    </div>
+                {monthNames.map(
+                  (name, index) => (
+                    <option
+                      key={index + 1}
+                      value={index + 1}
+                    >
+                      {name}
+                    </option>
+                  )
+                )}
 
-</div>
+              </select>
 
-{/* Budget Form */}
+            </div>
 
-<div className="form-card">
 
-<h2>
-    {editingId ? "Update Budget" : "Add Budget"}
-</h2>
+            {/* Year */}
 
-<div className="form-grid">
+            <div className="budget-field">
 
-<input
-type="number"
-placeholder="Budget Amount"
-value={form.budget_amount}
-onChange={(e)=>
-setForm({
-...form,
-budget_amount:e.target.value
-})
-}
-/>
+              <label>
+                Budget Year <span>*</span>
+              </label>
 
-<select
-value={form.category}
-onChange={(e)=>
-setForm({
-...form,
-category:e.target.value
-})
-}
->
+              <input
+                type="number"
+                placeholder="Year"
+                value={form.year}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    year:
+                      e.target.value,
+                  })
+                }
+              />
 
-<option value="">Select Category</option>
+            </div>
 
-<option value="FOOD">Food</option>
+          </div>
 
-<option value="TRAVEL">Travel</option>
 
-<option value="SHOPPING">Shopping</option>
+          <div className="budget-form-actions">
 
-<option value="EDUCATION">Education</option>
+            <button
+              className="budget-submit-btn"
+              onClick={saveBudget}
+            >
+              {editingId
+                ? "Update Budget"
+                : "Create Budget"}
+            </button>
 
-<option value="ENTERTAINMENT">Entertainment</option>
 
-<option value="HEALTHCARE">Healthcare</option>
+            {editingId && (
+              <button
+                className="budget-secondary-btn"
+                onClick={resetForm}
+              >
+                Clear
+              </button>
+            )}
 
-<option value="BILLS">Bills</option>
+          </div>
 
-<option value="MISCELLANEOUS">
-Miscellaneous
-</option>
+        </div>
 
-</select>
 
-<select
-value={form.month}
-onChange={(e)=>
-setForm({
-...form,
-month:e.target.value
-})
-}
->
+        {/* =================================================
+            BUDGET LIST
+        ================================================= */}
 
-<option value="">Month</option>
+        <div className="budget-list-card">
 
-{Array.from({length:12},(_,i)=>(
 
-<option
-key={i+1}
-value={i+1}
->
+          <div className="budget-list-header">
 
-{i+1}
+            <div>
 
-</option>
+              <h2>
+                Budget Plans
+              </h2>
 
-))}
+              <p>
+                {filteredBudgets.length}{" "}
+                budget
+                {filteredBudgets.length !== 1
+                  ? "s"
+                  : ""}{" "}
+                found
+              </p>
 
-</select>
+            </div>
 
-<input
-type="number"
-placeholder="Year"
-value={form.year}
-onChange={(e)=>
-setForm({
-...form,
-year:e.target.value
-})
-}
-/>
 
-</div>
+            {/* SEARCH */}
 
-<button
-className="add-btn"
-onClick={saveBudget}
->
+            <div className="budget-search-box">
 
-{editingId ? "Update Budget" : "Add Budget"}
+              <span>
+                ⌕
+              </span>
 
-</button>
+              <input
+                type="text"
+                placeholder="Search budgets..."
+                value={searchTerm}
+                onChange={(e) =>
+                  setSearchTerm(
+                    e.target.value
+                  )
+                }
+              />
 
-</div>
+            </div>
 
-{/* Budget Table */}
+          </div>
 
-<div className="table-card">
 
-<h2>Budget List</h2>
+          {/* TABLE */}
 
-<table>
+          <div className="budget-table-wrapper">
 
-<thead>
+            <table className="budget-table">
 
-<tr>
+              <thead>
 
-<th>Category</th>
+                <tr>
 
-<th>Budget</th>
+                  <th>
+                    Category
+                  </th>
 
-<th>Month</th>
+                  <th>
+                    Budget
+                  </th>
 
-<th>Year</th>
+                  <th>
+                    Month
+                  </th>
 
-<th>Summary</th>
+                  <th>
+                    Year
+                  </th>
 
-<th>Edit</th>
+                  <th>
+                    Status
+                  </th>
 
-<th>Delete</th>
+                  <th>
+                    Actions
+                  </th>
 
-</tr>
+                </tr>
 
-</thead>
+              </thead>
 
-<tbody>
 
-{budgets.length===0 ? (
+              <tbody>
 
-<tr>
+                {filteredBudgets.length === 0 ? (
 
-<td colSpan="7">
+                  <tr>
 
-No Budgets Found
+                    <td
+                      colSpan="6"
+                      className="budget-table-message"
+                    >
 
-</td>
+                      <div className="budget-empty-state">
 
-</tr>
+                        <div className="budget-empty-icon">
+                          ₹
+                        </div>
 
-):(budgets.map((budget)=>(
+                        <h3>
+                          No budgets found
+                        </h3>
 
-<tr key={budget.id}>
+                        <p>
+                          Create a budget to
+                          start planning your
+                          spending.
+                        </p>
 
-<td>{budget.category}</td>
+                      </div>
 
-<td>
-₹ {budget.budget_amount}
-</td>
+                    </td>
 
-<td>{budget.month}</td>
+                  </tr>
 
-<td>{budget.year}</td>
+                ) : (
 
-<td>
+                  filteredBudgets.map(
+                    (budget) => (
 
-<button
-className="edit-btn"
-onClick={()=>
-fetchSummary(budget.id)
-}
->
+                      <tr
+                        key={budget.id}
+                      >
 
-View
+                        {/* Category */}
 
-</button>
+                        <td>
 
-</td>
+                          <span
+                            className={`budget-category-badge ${getCategoryClass(
+                              budget.category
+                            )}`}
+                          >
+                            {getCategoryLabel(
+                              budget.category
+                            )}
+                          </span>
 
-<td>
+                        </td>
 
-<button
-className="edit-btn"
-onClick={()=>
-editBudget(budget)
-}
->
 
-Edit
+                        {/* Amount */}
 
-</button>
+                        <td>
 
-</td>
+                          <span className="budget-amount">
+                            ₹{" "}
+                            {formatAmount(
+                              budget.budget_amount
+                            )}
+                          </span>
 
-<td>
+                        </td>
 
-<button
-className="delete-btn"
-onClick={()=>
-deleteBudget(budget.id)
-}
->
 
-Delete
+                        {/* Month */}
 
-</button>
+                        <td>
 
-</td>
+                          <span className="budget-month">
 
-</tr>
+                            {
+                              monthNames[
+                                Number(
+                                  budget.month
+                                ) - 1
+                              ] ||
+                                budget.month
+                            }
 
-)))}
+                          </span>
 
-</tbody>
+                        </td>
 
-</table>
 
-</div>
+                        {/* Year */}
 
-</MainLayout>
+                        <td>
 
-);
+                          <span className="budget-year">
+                            {budget.year}
+                          </span>
 
+                        </td>
+
+
+                        {/* Status */}
+
+                        <td>
+
+                          <span className="budget-status planned">
+                            Planned
+                          </span>
+
+                        </td>
+
+
+                        {/* Actions */}
+
+                        <td>
+
+                          <div className="budget-action-buttons">
+
+                            <button
+                              className="budget-view-btn"
+                              onClick={() =>
+                                fetchSummary(
+                                  budget
+                                )
+                              }
+                            >
+                              View
+                            </button>
+
+
+                            <button
+                              className="budget-edit-btn"
+                              onClick={() =>
+                                editBudget(
+                                  budget
+                                )
+                              }
+                            >
+                              Edit
+                            </button>
+
+
+                            <button
+                              className="budget-delete-btn"
+                              onClick={() =>
+                                deleteBudget(
+                                  budget.id
+                                )
+                              }
+                            >
+                              Delete
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+
+        {/* =================================================
+            SUMMARY MODAL
+        ================================================= */}
+
+        {showSummary &&
+          selectedSummary && (
+            <div
+              className="budget-modal-overlay"
+              onClick={() =>
+                setShowSummary(false)
+              }
+            >
+
+              <div
+                className="budget-summary-modal"
+                onClick={(e) =>
+                  e.stopPropagation()
+                }
+              >
+
+                <div className="budget-modal-header">
+
+                  <div>
+
+                    <span>
+                      Budget Summary
+                    </span>
+
+                    <h2>
+                      {getCategoryLabel(
+                        selectedBudget?.category
+                      )}
+                    </h2>
+
+                  </div>
+
+                  <button
+                    className="budget-modal-close"
+                    onClick={() =>
+                      setShowSummary(false)
+                    }
+                  >
+                    ×
+                  </button>
+
+                </div>
+
+
+                <div className="budget-modal-grid">
+
+                  <div>
+
+                    <span>
+                      Budget
+                    </span>
+
+                    <strong>
+                      ₹{" "}
+                      {formatAmount(
+                        selectedSummary.budget_amount
+                      )}
+                    </strong>
+
+                  </div>
+
+
+                  <div>
+
+                    <span>
+                      Spent
+                    </span>
+
+                    <strong className="modal-spent">
+                      ₹{" "}
+                      {formatAmount(
+                        selectedSummary.total_expense
+                      )}
+                    </strong>
+
+                  </div>
+
+
+                  <div>
+
+                    <span>
+                      Remaining
+                    </span>
+
+                    <strong className="modal-remaining">
+                      ₹{" "}
+                      {formatAmount(
+                        selectedSummary.remaining_budget
+                      )}
+                    </strong>
+
+                  </div>
+
+
+                  <div>
+
+                    <span>
+                      Overspent
+                    </span>
+
+                    <strong className="modal-overspent">
+                      ₹{" "}
+                      {formatAmount(
+                        selectedSummary.overspent_amount
+                      )}
+                    </strong>
+
+                  </div>
+
+                </div>
+
+
+                <div className="budget-modal-footer">
+
+                  <button
+                    className="budget-modal-done"
+                    onClick={() =>
+                      setShowSummary(false)
+                    }
+                  >
+                    Done
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+      </div>
+
+    </MainLayout>
+  );
 }

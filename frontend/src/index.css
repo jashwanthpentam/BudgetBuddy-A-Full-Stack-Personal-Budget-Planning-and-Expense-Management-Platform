@@ -1,17 +1,141 @@
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+/* =========================================================
+   BUDGETBUDDY - GLOBAL BASE STYLES
+   ========================================================= */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
 html,
 body,
-#root{
-    width:100%;
-    min-height:100vh;
+#root {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
-body{
-    font-family:Inter,sans-serif;
-    background:#0f172a;
+html {
+    background: var(--app-bg);
+    color-scheme: dark;
+}
+
+body {
+    font-family:
+        Inter,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
+    background: var(--app-bg);
+    color: var(--app-text);
+
+    transition:
+        background-color 0.25s ease,
+        color 0.25s ease;
+}
+
+/* =========================================================
+   LIGHT THEME
+   ========================================================= */
+
+html[data-theme="light"],
+body[data-theme="light"] {
+    color-scheme: light;
+}
+
+/* =========================================================
+   DARK THEME
+   ========================================================= */
+
+html[data-theme="dark"],
+body[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* =========================================================
+   GLOBAL TEXT
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+label,
+small,
+strong {
+    transition: color 0.25s ease;
+}
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+    color: var(--app-primary);
+}
+
+/* =========================================================
+   FORM CONTROLS
+   ========================================================= */
+
+input,
+select,
+textarea,
+button {
+    font-family: inherit;
+}
+
+input,
+select,
+textarea {
+    background: var(--app-input);
+    color: var(--app-text);
+    border-color: var(--app-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--app-text-muted);
+}
+
+select option {
+    background: var(--app-card);
+    color: var(--app-text);
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+* {
+    scrollbar-color: var(--app-border) var(--app-bg);
+}
+
+/* =========================================================
+   TEXT SELECTION
+   ========================================================= */
+
+::selection {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+::-moz-selection {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* Prevent forced browser colors from replacing the selection */
+html,
+body {
+    forced-color-adjust: none;
 }

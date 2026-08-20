@@ -2,8 +2,14 @@ from rest_framework import generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import Notification
-from .serializers import NotificationSerializer
+from .models import (
+    Notification,
+    NotificationPreference,
+)
+from .serializers import (
+    NotificationSerializer,
+    NotificationPreferenceSerializer,
+)
 
 
 class NotificationListCreateView(generics.ListCreateAPIView):
@@ -51,3 +57,25 @@ class MarkAsReadAPIView(APIView):
         return Response({
             "message": "Notification marked as read."
         })
+
+class NotificationPreferenceView(
+    generics.RetrieveUpdateAPIView
+):
+
+    serializer_class = (
+        NotificationPreferenceSerializer
+    )
+
+    permission_classes = [
+        permissions.IsAuthenticated
+    ]
+
+    def get_object(self):
+
+        preference, created = (
+            NotificationPreference.objects.get_or_create(
+                user=self.request.user
+            )
+        )
+
+        return preference

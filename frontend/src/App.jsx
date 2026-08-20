@@ -2,6 +2,7 @@ import "./App.css";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { Routes, Route } from "react-router-dom";
 
+import Analytics from "./pages/Analytics";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
@@ -96,6 +97,15 @@ return(
     element={
         <ProtectedRoute>
             <Settings />
+        </ProtectedRoute>
+    }
+/>
+
+<Route
+    path="/analytics"
+    element={
+        <ProtectedRoute>
+            <Analytics />
         </ProtectedRoute>
     }
 />

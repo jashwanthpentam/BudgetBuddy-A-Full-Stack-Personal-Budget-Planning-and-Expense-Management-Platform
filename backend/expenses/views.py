@@ -103,23 +103,38 @@ class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
 
+        old_instance = self.get_object()
+        old_budget_key = (
+            old_instance.category,
+            old_instance.expense_date.month,
+            old_instance.expense_date.year,
+        )
+
         expense = serializer.save()
 
-        try:
-            budget = Budget.objects.get(
-                user=self.request.user,
-                category=expense.category,
-                month=expense.expense_date.month,
-                year=expense.expense_date.year
-            )
+        budget_keys = {
+            old_budget_key,
+            (
+                expense.category,
+                expense.expense_date.month,
+                expense.expense_date.year,
+            ),
+        }
 
-            recalculate_budget_alert(
-                self.request.user,
-                budget
-            )
-
-        except Budget.DoesNotExist:
-            pass
+        for category, month, year in budget_keys:
+            try:
+                budget = Budget.objects.get(
+                    user=self.request.user,
+                    category=category,
+                    month=month,
+                    year=year,
+                )
+                recalculate_budget_alert(
+                    self.request.user,
+                    budget
+                )
+            except Budget.DoesNotExist:
+                continue
 
     def perform_destroy(self, instance):
 

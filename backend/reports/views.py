@@ -33,8 +33,14 @@ class MonthlyFinancialReportView(APIView):
                 {"error": "month and year are required."}, status=400
             )
 
-        month = int(month)
-        year = int(year)
+        try:
+            month = int(month)
+            year = int(year)
+        except (TypeError, ValueError):
+            return Response({"error": "month and year must be valid integers."}, status=400)
+
+        if month < 1 or month > 12 or year < 2000 or year > 2100:
+            return Response({"error": "month must be 1-12 and year must be between 2000 and 2100."}, status=400)
 
         total_income = (
             Income.objects.filter(
@@ -63,7 +69,7 @@ class MonthlyFinancialReportView(APIView):
             or 0
         )
 
-        total_savings = total_income - total_expense
+        total_savings = max(total_income - total_expense, 0)
 
         current_balance = total_income - total_expense
 
@@ -202,7 +208,7 @@ class FinancialSummaryView(APIView):
 
         remaining_budget = max(total_budget - total_expense, 0)
 
-        total_savings = current_balance
+        total_savings = max(current_balance, 0)
 
         goals = SavingsGoal.objects.filter(user=request.user)
 
@@ -284,7 +290,7 @@ class GenerateReportView(APIView):
                 status=400,
             )
 
-        if end_date <= start_date:
+        if end_date < start_date:
             return Response(
                 {
                     "error": "End date must be greater than or equal to start date."
