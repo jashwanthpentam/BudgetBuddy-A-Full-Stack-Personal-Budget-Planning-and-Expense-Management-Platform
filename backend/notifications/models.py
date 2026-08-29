@@ -6,9 +6,11 @@ class Notification(models.Model):
 
     NOTIFICATION_TYPES = [
         ("budget", "Budget"),
+        ("expense", "Expense"),
         ("saving", "Saving"),
         ("reminder", "Reminder"),
         ("report", "Report"),
+        ("weekly_summary", "Weekly Summary"),
     ]
 
     user = models.ForeignKey(

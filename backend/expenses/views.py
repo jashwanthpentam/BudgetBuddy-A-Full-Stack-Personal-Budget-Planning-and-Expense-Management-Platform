@@ -9,6 +9,7 @@ from .serializers import ExpenseSerializer
 
 from budgets.models import Budget
 from budgets.utils import recalculate_budget_alert
+from notifications.utils import create_notification
 
 
 class ExpenseListCreateView(generics.ListCreateAPIView):
@@ -77,10 +78,21 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
 
     
 
-        serializer.save(
+        expense = serializer.save(
             user=self.request.user
         )
-        
+
+        create_notification(
+            user=self.request.user,
+            title="Expense Recorded",
+            message=(
+                f"An expense of ₹{expense.amount} was recorded "
+                f"under {expense.get_category_display()} on "
+                f"{expense.expense_date.strftime('%d %B %Y')}."
+            ),
+            notification_type="expense",
+        )
+
         recalculate_budget_alert(
             self.request.user,
             budget

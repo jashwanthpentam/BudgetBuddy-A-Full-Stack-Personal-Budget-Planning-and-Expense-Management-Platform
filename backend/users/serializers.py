@@ -26,11 +26,44 @@ class RegisterSerializer(serializers.ModelSerializer):
             "password",
         ]
 
+    def validate_username(self, value):
+
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Username is required."
+            )
+
+        if User.objects.filter(
+            username__iexact=value
+        ).exists():
+
+            raise serializers.ValidationError(
+                "This username is already taken."
+            )
+
+        return value
+
+    def validate_email(self, value):
+
+        value = value.strip().lower()
+
+        if User.objects.filter(
+            email__iexact=value
+        ).exists():
+
+            raise serializers.ValidationError(
+                "This email is already registered."
+            )
+
+        return value
+
     def create(self, validated_data):
 
         user = User.objects.create_user(
-            username=validated_data["username"],
-            email=validated_data["email"],
+            username=validated_data["username"].strip(),
+            email=validated_data["email"].strip().lower(),
             password=validated_data["password"]
         )
 
@@ -96,10 +129,12 @@ class ProfileSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
 
         user = self.context["request"].user
+        value = value.strip().lower()
 
-        # Prevent duplicate email addresses
+        # Prevent duplicate email addresses, including case-only
+        # differences such as User@Example.com vs user@example.com.
         if User.objects.filter(
-            email=value
+            email__iexact=value
         ).exclude(
             pk=user.pk
         ).exists():

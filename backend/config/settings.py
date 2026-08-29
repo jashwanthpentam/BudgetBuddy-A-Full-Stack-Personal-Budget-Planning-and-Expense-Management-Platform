@@ -286,18 +286,24 @@ DEFAULT_FROM_EMAIL = config(
     default=EMAIL_HOST_USER,
 )
 
-# Use SMTP when email credentials are configured.
-# Otherwise use console backend so the application can still
-# start and operate without crashing because of missing email
-# environment variables.
-if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
-    EMAIL_BACKEND = (
+# Use SMTP whenever production email credentials are configured.
+# Keep the console backend for local development when credentials
+# are intentionally omitted. Render must define EMAIL_HOST_USER
+# and EMAIL_HOST_PASSWORD for real email delivery.
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default=(
         "django.core.mail.backends.smtp.EmailBackend"
-    )
-else:
-    EMAIL_BACKEND = (
-        "django.core.mail.backends.console.EmailBackend"
-    )
+        if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
+        else "django.core.mail.backends.console.EmailBackend"
+    ),
+)
+
+EMAIL_TIMEOUT = config(
+    "EMAIL_TIMEOUT",
+    default=20,
+    cast=int,
+)
 
 
 # ============================================================
