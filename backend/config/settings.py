@@ -301,7 +301,7 @@ EMAIL_BACKEND = config(
 
 EMAIL_TIMEOUT = config(
     "EMAIL_TIMEOUT",
-    default=20,
+    default=5,
     cast=int,
 )
 

@@ -185,12 +185,6 @@ class SavingsListCreateView(
             notification_type="saving",
         )
 
-        # Check whether the new goal already
-        # qualifies for another notification.
-
-        check_savings_notifications(
-            self.request.user
-        )
 
 
 # ============================================================
@@ -219,9 +213,6 @@ class SavingsDetailView(
 
         goal = serializer.save()
 
-        check_savings_notifications(
-            self.request.user
-        )
 
 
 # ============================================================
@@ -271,14 +262,6 @@ class GoalProgressAPIView(
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def savings_summary(request):
-
-    # Check notifications whenever the
-    # savings dashboard is opened.
-
-    check_savings_notifications(
-        request.user
-    )
-
 
     goals = SavingsGoal.objects.filter(
         user=request.user

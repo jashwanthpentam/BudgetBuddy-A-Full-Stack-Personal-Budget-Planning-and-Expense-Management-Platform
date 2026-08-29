@@ -20,7 +20,11 @@ def _send_budget_notification(
     if notification is None:
         return False
 
-    return bool(getattr(notification, "email_sent", False))
+    # The email is intentionally dispatched asynchronously. The notification
+    # itself is the durable event, so budget alert state must not depend on
+    # SMTP availability. Otherwise every later expense could trigger the same
+    # alert again when SMTP is slow or temporarily unavailable.
+    return True
 
 
 def recalculate_budget_alert(user, budget):

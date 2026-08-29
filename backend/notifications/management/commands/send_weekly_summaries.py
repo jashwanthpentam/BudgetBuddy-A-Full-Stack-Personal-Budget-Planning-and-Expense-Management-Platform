@@ -85,6 +85,8 @@ class Command(BaseCommand):
                 title="Weekly Financial Summary",
                 message=message,
                 notification_type="weekly_summary",
+                send_email=True,
+                async_email=True,
             )
 
             if notification is not None:

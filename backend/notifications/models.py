@@ -35,6 +35,19 @@ class Notification(models.Model):
         default = False
     )
 
+    email_sent = models.BooleanField(
+        default=False
+    )
+
+    email_attempted = models.BooleanField(
+        default=False
+    )
+
+    email_error = models.TextField(
+        blank=True,
+        default="",
+    )
+
     created_at = models.DateTimeField(
         auto_now_add = True
     )

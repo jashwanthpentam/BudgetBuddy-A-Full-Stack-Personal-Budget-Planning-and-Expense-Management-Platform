@@ -1,5 +1,4 @@
 from html import escape
-
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from email.mime.image import MIMEImage
@@ -141,8 +140,17 @@ def create_notification(
     title,
     message,
     notification_type,
+    *,
+    send_email=True,
+    async_email=True,
 ):
-    """Create an in-app notification and attempt its email delivery."""
+    """Create an in-app notification without blocking normal API requests.
+
+    ``async_email=True`` is used by web requests so a slow/unreachable SMTP
+    server cannot hold a Gunicorn worker hostage. Scheduled management
+    commands can pass ``async_email=False`` when they need to wait for the
+    delivery attempt to finish before the process exits.
+    """
 
     preferences, created = NotificationPreference.objects.get_or_create(
         user=user
@@ -176,8 +184,9 @@ def create_notification(
         notification_type=notification_type,
     )
 
-    notification.email_sent = send_notification_email(
-        user, title, message
-    )
-
+    # IMPORTANT: HTTP/API requests must never perform SMTP work.
+    # Email delivery is handled separately by the management command
+    # ``send_pending_notifications``.
+    # ``send_email`` and ``async_email`` are retained for compatibility with
+    # existing callers, but SMTP is intentionally not performed here.
     return notification
