@@ -1,9 +1,9 @@
 from html import escape
 from threading import Thread
-from email.mime.image import MIMEImage
+
+import resend
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 
 from .models import (
     Notification,
@@ -12,7 +12,7 @@ from .models import (
 
 
 def get_budgetbuddy_logo_path():
-    """Locate the same final BudgetBuddy mark used by the frontend."""
+    """Locate the BudgetBuddy logo used by the frontend."""
 
     base_dir = settings.BASE_DIR
 
@@ -32,7 +32,11 @@ def get_budgetbuddy_logo_path():
 
 
 def send_notification_email(user, title, message):
-    """Send one BudgetBuddy notification email."""
+    """
+    Send one BudgetBuddy notification email using Resend.
+
+    Returns True if Resend accepts the email successfully.
+    """
 
     recipient = (user.email or "").strip()
 
@@ -43,170 +47,120 @@ def send_notification_email(user, title, message):
         )
         return False
 
-    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
+    resend_api_key = getattr(settings, "RESEND_API_KEY", "")
+
+    if not resend_api_key:
         print(
             "Notification email skipped: "
-            "EMAIL_HOST_USER and EMAIL_HOST_PASSWORD "
-            "are not configured."
+            "RESEND_API_KEY is not configured."
         )
         return False
-
-    subject = f"BudgetBuddy | {title}"
-    text_content = message
-
-    logo_path = get_budgetbuddy_logo_path()
-
-    safe_title = escape(title)
-    safe_message = escape(message).replace("\n", "<br>")
-    safe_username = escape(user.username)
-
-    logo_html = (
-        '<img src="cid:budgetbuddy-logo" '
-        'alt="BudgetBuddy" '
-        'style="width:54px;height:54px;display:block;'
-        'border-radius:14px;" />'
-        if logo_path
-        else (
-            '<div style="font-size:22px;font-weight:700;'
-            'color:#0f172a;">BudgetBuddy</div>'
-        )
-    )
-
-    html_content = f"""
-    <html>
-    <body style="
-        font-family:Arial,sans-serif;
-        background:#f4f6f9;
-        padding:20px;
-    ">
-        <div style="
-            max-width:600px;
-            margin:auto;
-            background:white;
-            border-radius:12px;
-            padding:30px;
-            border:1px solid #ddd;
-        ">
-            <div style="margin-bottom:10px;">
-                {logo_html}
-            </div>
-
-            <div style="
-                font-size:18px;
-                font-weight:700;
-                color:#0f172a;
-                margin-bottom:18px;
-            ">
-                BudgetBuddy
-            </div>
-
-            <hr>
-
-            <h3>{safe_title}</h3>
-
-            <p>
-                Hello <b>{safe_username}</b>,
-            </p>
-
-            <p>
-                {safe_message}
-            </p>
-
-            <br>
-
-            <div style="
-                background:#F8F9FA;
-                padding:15px;
-                border-left:5px solid #c8a96b;
-            ">
-                <b>
-                    This is an automated notification
-                    from BudgetBuddy.
-                </b>
-            </div>
-
-            <br>
-
-            <p>
-                Thank you for using <b>BudgetBuddy</b>.
-            </p>
-
-            <hr>
-
-            <small>
-                BudgetBuddy • Personal Budget Planning
-                &amp; Expense Management Platform
-            </small>
-        </div>
-    </body>
-    </html>
-    """
 
     try:
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=text_content,
-            from_email=(
-                settings.DEFAULT_FROM_EMAIL
-                or settings.EMAIL_HOST_USER
+        resend.api_key = resend_api_key
+
+        safe_title = escape(title)
+        safe_message = escape(message).replace("\n", "<br>")
+        safe_username = escape(user.username)
+
+        html_content = f"""
+        <html>
+        <body style="
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            padding: 20px;
+        ">
+            <div style="
+                max-width: 600px;
+                margin: auto;
+                background: white;
+                border-radius: 12px;
+                padding: 30px;
+                border: 1px solid #dddddd;
+            ">
+
+                <div style="
+                    font-size: 24px;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin-bottom: 20px;
+                ">
+                    BudgetBuddy
+                </div>
+
+                <hr>
+
+                <h2 style="
+                    color: #0f172a;
+                ">
+                    {safe_title}
+                </h2>
+
+                <p>
+                    Hello <strong>{safe_username}</strong>,
+                </p>
+
+                <p>
+                    {safe_message}
+                </p>
+
+                <br>
+
+                <div style="
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-left: 5px solid #c8a96b;
+                ">
+                    <strong>
+                        This is an automated notification
+                        from BudgetBuddy.
+                    </strong>
+                </div>
+
+                <br>
+
+                <p>
+                    Thank you for using
+                    <strong>BudgetBuddy</strong>.
+                </p>
+
+                <hr>
+
+                <small style="
+                    color: #64748b;
+                ">
+                    BudgetBuddy • Personal Budget Planning
+                    &amp; Expense Management Platform
+                </small>
+
+            </div>
+        </body>
+        </html>
+        """
+
+        params = {
+            "from": getattr(
+                settings,
+                "RESEND_FROM_EMAIL",
+                "BudgetBuddy <onboarding@resend.dev>",
             ),
-            to=[recipient],
-        )
+            "to": [recipient],
+            "subject": f"BudgetBuddy | {title}",
+            "html": html_content,
+            "text": message,
+        }
 
-        email.attach_alternative(
-            html_content,
-            "text/html",
-        )
-
-        if logo_path:
-            try:
-                logo_data = logo_path.read_bytes()
-
-                logo_image = MIMEImage(
-                    logo_data,
-                    _subtype="png",
-                )
-
-                logo_image.add_header(
-                    "Content-ID",
-                    "<budgetbuddy-logo>",
-                )
-
-                logo_image.add_header(
-                    "Content-Disposition",
-                    "inline",
-                    filename="budgetbuddy-mark.png",
-                )
-
-                email.attach(
-                    logo_image
-                )
-
-            except Exception as logo_error:
-                print(
-                    f"BudgetBuddy logo attachment failed: "
-                    f"{logo_error}"
-                )
-
-        sent = email.send(
-            fail_silently=False
-        )
-
-        if sent == 1:
-            print(
-                f"BudgetBuddy notification email sent to "
-                f"{recipient}."
-            )
-            return True
+        response = resend.Emails.send(params)
 
         print(
-            f"BudgetBuddy email backend did not report "
-            f"a successful send for {recipient}."
+            f"BudgetBuddy notification email accepted by Resend "
+            f"for {recipient}. Response: {response}"
         )
 
-        return False
+        return True
 
     except Exception as error:
+
         print(
             f"BudgetBuddy notification email failed for "
             f"{recipient}: {error}"
@@ -225,19 +179,16 @@ def create_notification(
     async_email=True,
 ):
     """
-    Create an in-app notification and optionally send its email.
+    Create an in-app notification and optionally send an email.
 
-    Normal API requests use a background thread so SMTP does not
-    block the Django/Gunicorn request.
+    Normal API requests send the email in a background thread so
+    the HTTP request is not delayed.
 
-    Management commands can use async_email=False when they need
-    to wait for email delivery before finishing.
+    Scheduled commands can use async_email=False.
     """
 
-    preferences, _ = (
-        NotificationPreference.objects.get_or_create(
-            user=user
-        )
+    preferences, _ = NotificationPreference.objects.get_or_create(
+        user=user
     )
 
     notification_type = (
@@ -247,25 +198,15 @@ def create_notification(
     allowed = True
 
     if notification_type == "budget":
-
         allowed = preferences.budget_alerts
 
     elif notification_type == "expense":
-
         allowed = preferences.expense_alerts
 
-    elif notification_type in [
-        "saving",
-        "savings",
-    ]:
-
+    elif notification_type in ["saving", "savings"]:
         allowed = preferences.savings_alerts
 
-    elif notification_type in [
-        "report",
-        "weekly_summary",
-    ]:
-
+    elif notification_type in ["report", "weekly_summary"]:
         allowed = preferences.weekly_summary
 
     if not allowed:
@@ -284,14 +225,10 @@ def create_notification(
         notification_type=notification_type,
     )
 
-    # In-app notification only.
     if not send_email:
         return notification
 
     def deliver_email():
-        """
-        Send the email and update the notification delivery status.
-        """
 
         try:
 
@@ -306,10 +243,9 @@ def create_notification(
 
             if ok:
                 notification.email_error = ""
-
             else:
                 notification.email_error = (
-                    "Email delivery failed."
+                    "Resend did not accept the email."
                 )
 
             notification.save(
@@ -323,8 +259,7 @@ def create_notification(
         except Exception as error:
 
             print(
-                f"Notification email delivery failed: "
-                f"{error}"
+                f"Notification email delivery failed: {error}"
             )
 
             notification.email_attempted = True
@@ -339,8 +274,6 @@ def create_notification(
                 ]
             )
 
-    # Normal web/API notification.
-    # Send without blocking the user's request.
     if async_email:
 
         Thread(
@@ -348,7 +281,6 @@ def create_notification(
             daemon=True,
         ).start()
 
-    # Management command / synchronous usage.
     else:
 
         deliver_email()

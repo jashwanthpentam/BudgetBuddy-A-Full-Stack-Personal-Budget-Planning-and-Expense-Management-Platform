@@ -250,6 +250,19 @@ CORS_ALLOW_CREDENTIALS = config(
 # ============================================================
 # EMAIL
 # ============================================================
+# ============================================================
+# RESEND EMAIL API
+# ============================================================
+
+RESEND_API_KEY = config(
+    "RESEND_API_KEY",
+    default="",
+)
+
+RESEND_FROM_EMAIL = config(
+    "RESEND_FROM_EMAIL",
+    default="BudgetBuddy <onboarding@resend.dev>",
+)
 
 EMAIL_HOST = config(
     "EMAIL_HOST",
@@ -267,6 +280,7 @@ EMAIL_USE_TLS = config(
     default=True,
     cast=bool,
 )
+
 
 # IMPORTANT:
 # These have defaults so Django can start on Render even
