@@ -4,7 +4,9 @@ Django settings for config project.
 
 from pathlib import Path
 from datetime import timedelta
+
 from decouple import config, Csv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -107,13 +109,24 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME"),
-        "USER": config("DB_USER"),
-        "PASSWORD": config("DB_PASSWORD"),
+
+        "NAME": config(
+            "DB_NAME"
+        ),
+
+        "USER": config(
+            "DB_USER"
+        ),
+
+        "PASSWORD": config(
+            "DB_PASSWORD"
+        ),
+
         "HOST": config(
             "DB_HOST",
             default="127.0.0.1",
         ),
+
         "PORT": config(
             "DB_PORT",
             default="5432",
@@ -133,18 +146,21 @@ AUTH_PASSWORD_VALIDATORS = [
             "UserAttributeSimilarityValidator"
         ),
     },
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "MinimumLengthValidator"
         ),
     },
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
             "CommonPasswordValidator"
         ),
     },
+
     {
         "NAME": (
             "django.contrib.auth.password_validation."
@@ -177,8 +193,12 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": (
+            "django.core.files.storage."
+            "FileSystemStorage"
+        ),
     },
+
     "staticfiles": {
         "BACKEND": (
             "whitenoise.storage."
@@ -187,11 +207,15 @@ STORAGES = {
     },
 }
 
+
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+DEFAULT_AUTO_FIELD = (
+    "django.db.models.BigAutoField"
+)
 
 
 # ============================================================
@@ -200,7 +224,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "rest_framework_simplejwt.authentication."
+        "JWTAuthentication",
     ),
 }
 
@@ -210,6 +235,7 @@ REST_FRAMEWORK = {
 # ============================================================
 
 SIMPLE_JWT = {
+
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=config(
             "ACCESS_TOKEN_LIFETIME_MINUTES",
@@ -217,6 +243,7 @@ SIMPLE_JWT = {
             cast=int,
         )
     ),
+
     "REFRESH_TOKEN_LIFETIME": timedelta(
         days=config(
             "REFRESH_TOKEN_LIFETIME_DAYS",
@@ -224,6 +251,7 @@ SIMPLE_JWT = {
             cast=int,
         )
     ),
+
 }
 
 
@@ -233,12 +261,15 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
+
     default=(
         "http://localhost:5173,"
         "http://127.0.0.1:5173"
     ),
+
     cast=Csv(),
 )
+
 
 CORS_ALLOW_CREDENTIALS = config(
     "CORS_ALLOW_CREDENTIALS",
@@ -248,75 +279,24 @@ CORS_ALLOW_CREDENTIALS = config(
 
 
 # ============================================================
-# EMAIL
-# ============================================================
-# ============================================================
-# RESEND EMAIL API
+# EMAIL - BREVO API
 # ============================================================
 
-RESEND_API_KEY = config(
-    "RESEND_API_KEY",
+BREVO_API_KEY = config(
+    "BREVO_API_KEY",
     default="",
 )
 
-RESEND_FROM_EMAIL = config(
-    "RESEND_FROM_EMAIL",
-    default="BudgetBuddy <onboarding@resend.dev>",
-)
 
-EMAIL_HOST = config(
-    "EMAIL_HOST",
-    default="smtp.gmail.com",
-)
-
-EMAIL_PORT = config(
-    "EMAIL_PORT",
-    default=587,
-    cast=int,
-)
-
-EMAIL_USE_TLS = config(
-    "EMAIL_USE_TLS",
-    default=True,
-    cast=bool,
-)
-
-
-# IMPORTANT:
-# These have defaults so Django can start on Render even
-# if email credentials have not yet been configured.
-EMAIL_HOST_USER = config(
-    "EMAIL_HOST_USER",
+BREVO_FROM_EMAIL = config(
+    "BREVO_FROM_EMAIL",
     default="",
 )
 
-EMAIL_HOST_PASSWORD = config(
-    "EMAIL_HOST_PASSWORD",
-    default="",
-)
 
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
-    default=EMAIL_HOST_USER,
-)
-
-# Use SMTP whenever production email credentials are configured.
-# Keep the console backend for local development when credentials
-# are intentionally omitted. Render must define EMAIL_HOST_USER
-# and EMAIL_HOST_PASSWORD for real email delivery.
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND",
-    default=(
-        "django.core.mail.backends.smtp.EmailBackend"
-        if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
-        else "django.core.mail.backends.console.EmailBackend"
-    ),
-)
-
-EMAIL_TIMEOUT = config(
-    "EMAIL_TIMEOUT",
-    default=5,
-    cast=int,
+    default=BREVO_FROM_EMAIL,
 )
 
 
@@ -330,11 +310,13 @@ SECURE_SSL_REDIRECT = config(
     cast=bool,
 )
 
+
 SESSION_COOKIE_SECURE = config(
     "SESSION_COOKIE_SECURE",
     default=False,
     cast=bool,
 )
+
 
 CSRF_COOKIE_SECURE = config(
     "CSRF_COOKIE_SECURE",
@@ -342,16 +324,19 @@ CSRF_COOKIE_SECURE = config(
     cast=bool,
 )
 
+
 SECURE_CONTENT_TYPE_NOSNIFF = config(
     "SECURE_CONTENT_TYPE_NOSNIFF",
     default=True,
     cast=bool,
 )
 
+
 X_FRAME_OPTIONS = config(
     "X_FRAME_OPTIONS",
     default="DENY",
 )
+
 
 SECURE_HSTS_SECONDS = config(
     "SECURE_HSTS_SECONDS",
@@ -359,11 +344,13 @@ SECURE_HSTS_SECONDS = config(
     cast=int,
 )
 
+
 SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
     "SECURE_HSTS_INCLUDE_SUBDOMAINS",
     default=False,
     cast=bool,
 )
+
 
 SECURE_HSTS_PRELOAD = config(
     "SECURE_HSTS_PRELOAD",
