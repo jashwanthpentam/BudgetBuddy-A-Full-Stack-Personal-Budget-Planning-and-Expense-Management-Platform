@@ -1,9 +1,8 @@
 from html import escape
 from threading import Thread
 
-import resend
-
 from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 
 from .models import (
     Notification,
@@ -11,31 +10,11 @@ from .models import (
 )
 
 
-def get_budgetbuddy_logo_path():
-    """Locate the BudgetBuddy logo used by the frontend."""
-
-    base_dir = settings.BASE_DIR
-
-    candidates = [
-        base_dir / "frontend" / "public" / "budgetbuddy-mark.png",
-        base_dir.parent / "frontend" / "public" / "budgetbuddy-mark.png",
-        base_dir / "static" / "budgetbuddy-mark.png",
-        base_dir / "static" / "images" / "budgetbuddy-mark.png",
-        base_dir / "staticfiles" / "budgetbuddy-mark.png",
-    ]
-
-    for candidate in candidates:
-        if candidate.exists() and candidate.is_file():
-            return candidate
-
-    return None
-
-
 def send_notification_email(user, title, message):
     """
-    Send one BudgetBuddy notification email using Resend.
+    Send one BudgetBuddy notification email using Gmail SMTP.
 
-    Returns True if Resend accepts the email successfully.
+    Returns True if Gmail SMTP successfully sends the email.
     """
 
     recipient = (user.email or "").strip()
@@ -47,117 +26,119 @@ def send_notification_email(user, title, message):
         )
         return False
 
-    resend_api_key = getattr(settings, "RESEND_API_KEY", "")
-
-    if not resend_api_key:
+    if not settings.EMAIL_HOST_USER or not settings.EMAIL_HOST_PASSWORD:
         print(
             "Notification email skipped: "
-            "RESEND_API_KEY is not configured."
+            "EMAIL_HOST_USER or EMAIL_HOST_PASSWORD is not configured."
         )
         return False
 
-    try:
-        resend.api_key = resend_api_key
+    safe_title = escape(title)
+    safe_message = escape(message).replace("\n", "<br>")
+    safe_username = escape(user.username)
 
-        safe_title = escape(title)
-        safe_message = escape(message).replace("\n", "<br>")
-        safe_username = escape(user.username)
+    subject = f"BudgetBuddy | {title}"
 
-        html_content = f"""
-        <html>
-        <body style="
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
-            padding: 20px;
+    html_content = f"""
+    <html>
+    <body style="
+        font-family: Arial, sans-serif;
+        background: #f4f6f9;
+        padding: 20px;
+    ">
+        <div style="
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            border: 1px solid #dddddd;
         ">
+
             <div style="
-                max-width: 600px;
-                margin: auto;
-                background: white;
-                border-radius: 12px;
-                padding: 30px;
-                border: 1px solid #dddddd;
+                font-size: 24px;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 20px;
             ">
-
-                <div style="
-                    font-size: 24px;
-                    font-weight: 700;
-                    color: #0f172a;
-                    margin-bottom: 20px;
-                ">
-                    BudgetBuddy
-                </div>
-
-                <hr>
-
-                <h2 style="
-                    color: #0f172a;
-                ">
-                    {safe_title}
-                </h2>
-
-                <p>
-                    Hello <strong>{safe_username}</strong>,
-                </p>
-
-                <p>
-                    {safe_message}
-                </p>
-
-                <br>
-
-                <div style="
-                    background: #f8f9fa;
-                    padding: 15px;
-                    border-left: 5px solid #c8a96b;
-                ">
-                    <strong>
-                        This is an automated notification
-                        from BudgetBuddy.
-                    </strong>
-                </div>
-
-                <br>
-
-                <p>
-                    Thank you for using
-                    <strong>BudgetBuddy</strong>.
-                </p>
-
-                <hr>
-
-                <small style="
-                    color: #64748b;
-                ">
-                    BudgetBuddy • Personal Budget Planning
-                    &amp; Expense Management Platform
-                </small>
-
+                BudgetBuddy
             </div>
-        </body>
-        </html>
-        """
 
-        params = {
-            "from": getattr(
-                settings,
-                "RESEND_FROM_EMAIL",
-                "BudgetBuddy <onboarding@resend.dev>",
-            ),
-            "to": [recipient],
-            "subject": f"BudgetBuddy | {title}",
-            "html": html_content,
-            "text": message,
-        }
+            <hr>
 
-        response = resend.Emails.send(params)
+            <h2 style="color: #0f172a;">
+                {safe_title}
+            </h2>
 
-        print(
-            f"BudgetBuddy notification email accepted by Resend "
-            f"for {recipient}. Response: {response}"
+            <p>
+                Hello <strong>{safe_username}</strong>,
+            </p>
+
+            <p>
+                {safe_message}
+            </p>
+
+            <br>
+
+            <div style="
+                background: #f8f9fa;
+                padding: 15px;
+                border-left: 5px solid #c8a96b;
+            ">
+                <strong>
+                    This is an automated notification
+                    from BudgetBuddy.
+                </strong>
+            </div>
+
+            <br>
+
+            <p>
+                Thank you for using
+                <strong>BudgetBuddy</strong>.
+            </p>
+
+            <hr>
+
+            <small style="color: #64748b;">
+                BudgetBuddy • Personal Budget Planning
+                &amp; Expense Management Platform
+            </small>
+
+        </div>
+    </body>
+    </html>
+    """
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[recipient],
         )
 
-        return True
+        email.attach_alternative(
+            html_content,
+            "text/html",
+        )
+
+        sent = email.send(
+            fail_silently=False,
+        )
+
+        if sent == 1:
+            print(
+                f"BudgetBuddy notification email sent successfully "
+                f"to {recipient}."
+            )
+            return True
+
+        print(
+            f"BudgetBuddy notification email was not sent "
+            f"to {recipient}."
+        )
+        return False
 
     except Exception as error:
 
@@ -245,7 +226,7 @@ def create_notification(
                 notification.email_error = ""
             else:
                 notification.email_error = (
-                    "Resend did not accept the email."
+                    "Gmail SMTP did not send the email."
                 )
 
             notification.save(
