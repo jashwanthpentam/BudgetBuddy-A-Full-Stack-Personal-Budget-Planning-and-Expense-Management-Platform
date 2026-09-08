@@ -1,360 +1,156 @@
-from datetime import date, timedelta
+from datetime import date
+from decimal import Decimal
 
+from django.db.models import Sum
 from rest_framework import generics, permissions
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
-from django.db.models import Sum
-
 from .models import SavingsGoal
 from .serializers import SavingsGoalSerializer
-
-from income.models import Income
-from expenses.models import Expense
-
-from notifications.models import Notification
+from .services import (
+    check_goal_deadlines,
+    period_totals,
+    refresh_goal_allocations,
+)
 from notifications.utils import create_notification
 
 
-# ============================================================
-# HELPER FUNCTIONS
-# ============================================================
-
-def calculate_saved_amount(user):
-
-    total_income = (
-        Income.objects
-        .filter(user=user)
-        .aggregate(total=Sum("amount"))["total"]
-        or 0
-    )
-
-    total_expense = (
-        Expense.objects
-        .filter(user=user)
-        .aggregate(total=Sum("amount"))["total"]
-        or 0
-    )
-
-    return max(total_income - total_expense, 0)
-
-
-def create_completion_notification(
-    user,
-    goal
-):
-
-    message = (
-        f"Congratulations! You have completed "
-        f"your savings goal '{goal.goal_name}'."
-    )
-
-    already_exists = Notification.objects.filter(
-        user=user,
-        notification_type="saving",
-        title="Savings Goal Completed",
-        message=message,
-    ).exists()
-
-    if already_exists:
-        return
-
-    create_notification(
-        user=user,
-        title="Savings Goal Completed",
-        message=message,
-        notification_type="saving",
-    )
+def _parse_period(request):
+    period = (request.query_params.get("period") or "month").lower()
+    if period == "month":
+        today = date.today()
+        month = int(request.query_params.get("month", today.month))
+        year = int(request.query_params.get("year", today.year))
+        if not 1 <= month <= 12:
+            raise ValueError("month must be between 1 and 12")
+        if not 2000 <= year <= 2100:
+            raise ValueError("year must be between 2000 and 2100")
+        return period, month, year, None, None
+    if period == "custom":
+        start_raw = request.query_params.get("start_date")
+        end_raw = request.query_params.get("end_date")
+        if not start_raw or not end_raw:
+            raise ValueError("start_date and end_date are required for custom period")
+        start_date = date.fromisoformat(start_raw)
+        end_date = date.fromisoformat(end_raw)
+        if start_date > end_date:
+            raise ValueError("start_date cannot be after end_date")
+        return period, None, None, start_date, end_date
+    if period == "lifetime":
+        return period, None, None, None, None
+    raise ValueError("period must be month, custom, or lifetime")
 
 
-def create_deadline_notification(
-    user,
-    goal
-):
-
-    message = (
-        f"Your savings goal '{goal.goal_name}' "
-        f"is due on {goal.target_date.strftime('%d %B %Y')}."
-    )
-
-    already_exists = Notification.objects.filter(
-        user=user,
-        notification_type="saving",
-        title="Savings Goal Deadline",
-        message=message,
-    ).exists()
-
-    if already_exists:
-        return
-
-    create_notification(
-        user=user,
-        title="Savings Goal Deadline",
-        message=message,
-        notification_type="saving",
-    )
-
-
-def check_savings_notifications(user):
-
-    today = date.today()
-
-    saved_amount = calculate_saved_amount(user)
-
-    goals = SavingsGoal.objects.filter(
-        user=user
-    )
-
-    for goal in goals:
-
-        # ----------------------------------------------------
-        # COMPLETED GOAL
-        # ----------------------------------------------------
-
-        if (
-            goal.target_amount > 0
-            and saved_amount >= goal.target_amount
-        ):
-
-            create_completion_notification(
-                user,
-                goal
-            )
-
-            continue
-
-
-        # ----------------------------------------------------
-        # UPCOMING DEADLINE
-        # ----------------------------------------------------
-
-        days_remaining = (
-            goal.target_date - today
-        ).days
-
-
-        if 0 <= days_remaining <= 7:
-
-            create_deadline_notification(
-                user,
-                goal
-            )
-
-
-# ============================================================
-# SAVINGS LIST + CREATE
-# ============================================================
-
-class SavingsListCreateView(
-    generics.ListCreateAPIView
-):
-
+class SavingsListCreateView(generics.ListCreateAPIView):
     serializer_class = SavingsGoalSerializer
-
-    permission_classes = [
-        permissions.IsAuthenticated
-    ]
-
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        return SavingsGoal.objects.filter(user=self.request.user).order_by("is_finalized", "target_date", "-target_amount", "id")
 
-        return SavingsGoal.objects.filter(
-            user=self.request.user
-        ).order_by("target_date")
-
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        allocations, _ = check_goal_deadlines(self.request.user)
+        context["allocations"] = allocations
+        return context
 
     def perform_create(self, serializer):
-
-        goal = serializer.save(
-            user=self.request.user
-        )
-
+        goal = serializer.save(user=self.request.user)
         create_notification(
             user=self.request.user,
-
             title="Savings Goal Created",
-
-            message=(
-                f"Your savings goal "
-                f"'{goal.goal_name}' "
-                "has been created successfully."
-            ),
-
+            message=f"Your savings goal '{goal.goal_name}' has been created successfully.",
             notification_type="saving",
         )
+        refresh_goal_allocations(self.request.user)
 
 
-
-# ============================================================
-# SAVINGS DETAIL
-# ============================================================
-
-class SavingsDetailView(
-    generics.RetrieveUpdateDestroyAPIView
-):
-
+class SavingsDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SavingsGoalSerializer
-
-    permission_classes = [
-        permissions.IsAuthenticated
-    ]
-
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        return SavingsGoal.objects.filter(user=self.request.user)
 
-        return SavingsGoal.objects.filter(
-            user=self.request.user
-        )
-
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        allocations, _ = check_goal_deadlines(self.request.user)
+        context["allocations"] = allocations
+        return context
 
     def perform_update(self, serializer):
-
         goal = serializer.save()
+        refresh_goal_allocations(goal.user)
+
+    def perform_destroy(self, instance):
+        user = instance.user
+        instance.delete()
+        refresh_goal_allocations(user)
 
 
-
-# ============================================================
-# GOAL PROGRESS
-# ============================================================
-
-class GoalProgressAPIView(
-    RetrieveAPIView
-):
-
+class GoalProgressAPIView(RetrieveAPIView):
     serializer_class = SavingsGoalSerializer
-
-    permission_classes = [
-        permissions.IsAuthenticated
-    ]
-
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        return SavingsGoal.objects.filter(user=self.request.user)
 
-        return SavingsGoal.objects.filter(
-            user=self.request.user
-        )
-
-
-    def retrieve(
-        self,
-        request,
-        *args,
-        **kwargs
-    ):
-
+    def retrieve(self, request, *args, **kwargs):
         goal = self.get_object()
+        allocations, _ = check_goal_deadlines(request.user)
+        return Response(SavingsGoalSerializer(goal, context={"allocations": allocations}).data)
 
-        serializer = SavingsGoalSerializer(
-            goal
-        )
-
-        return Response(
-            serializer.data
-        )
-
-
-# ============================================================
-# SAVINGS SUMMARY
-# ============================================================
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def savings_summary(request):
+    try:
+        period, month, year, start_date, end_date = _parse_period(request)
+        income, expense, net = period_totals(
+            request.user, period=period, month=month, year=year,
+            start_date=start_date, end_date=end_date,
+        )
+    except (ValueError, TypeError) as exc:
+        return Response({"error": str(exc)}, status=400)
 
-    goals = SavingsGoal.objects.filter(
-        user=request.user
-    ).order_by("target_date")
-
-
-    total_target = (
-        goals
-        .aggregate(
-            total=Sum("target_amount")
-        )["total"]
-        or 0
-    )
-
-
-    total_income = (
-        Income.objects
-        .filter(user=request.user)
-        .aggregate(
-            total=Sum("amount")
-        )["total"]
-        or 0
-    )
-
-
-    total_expense = (
-        Expense.objects
-        .filter(user=request.user)
-        .aggregate(
-            total=Sum("amount")
-        )["total"]
-        or 0
-    )
-
-
-    total_saved = (
-        total_income -
-        total_expense
-    )
-
-
-    # Status is derived from the same saved amount used by the serializer.
-    # Do not rely on the database status field because it can become stale.
-    completed_goals = 0
-    active_goals = 0
-
-    for goal in goals:
-        if goal.target_amount > 0 and total_saved >= goal.target_amount:
-            completed_goals += 1
-        else:
-            active_goals += 1
-
-
-    remaining_amount = max(
-        total_target - total_saved,
-        0
-    )
-
-
-    overall_progress = (
-
-        (
-            total_saved /
-            total_target
-        ) * 100
-
-        if total_target > 0
-
-        else 0
-    )
-
+    allocations, unallocated = check_goal_deadlines(request.user)
+    goals = list(SavingsGoal.objects.filter(user=request.user).order_by("target_date", "-target_amount", "id"))
+    active_goals = [g for g in goals if g.is_active and not g.is_finalized]
+    finalized_goals = [g for g in goals if g.is_finalized]
+    total_target = sum((Decimal(g.target_amount) for g in active_goals), Decimal("0"))
+    active_saved = sum((Decimal(allocations.get(g.id, 0)) for g in active_goals), Decimal("0"))
+    active_remaining = sum((max(Decimal(g.target_amount) - Decimal(allocations.get(g.id, 0)), Decimal("0")) for g in active_goals), Decimal("0"))
+    overall_progress = (active_saved / total_target * Decimal("100")) if total_target > 0 else Decimal("0")
 
     return Response({
-
-        "total_target":
-            total_target,
-
-        "total_saved":
-            total_saved,
-
-        "remaining_amount":
-            remaining_amount,
-
-        "active_goals":
-            active_goals,
-
-        "completed_goals":
-            completed_goals,
-
-        "overall_progress":
-            round(
-                overall_progress,
-                2
-            ),
-
+        "period": {
+            "type": period,
+            "month": month,
+            "year": year,
+            "start_date": start_date,
+            "end_date": end_date,
+        },
+        "period_income": income,
+        "period_expense": expense,
+        "period_net_savings": net,
+        # Backward-compatible names now correctly represent the selected period.
+        "total_saved": net,
+        "total_target": total_target,
+        "allocated_to_active_goals": active_saved,
+        "remaining_amount": active_remaining,
+        "unallocated_savings": unallocated,
+        "active_goals": len(active_goals),
+        "completed_goals": len(finalized_goals),
+        "overall_progress": round(float(min(max(overall_progress, Decimal("0")), Decimal("100"))), 2),
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def savings_history(request):
+    allocations, _ = check_goal_deadlines(request.user)
+    goals = SavingsGoal.objects.filter(user=request.user, is_finalized=True).order_by("-finalized_at", "-target_date")
+    return Response(SavingsGoalSerializer(goals, many=True, context={"allocations": allocations}).data)

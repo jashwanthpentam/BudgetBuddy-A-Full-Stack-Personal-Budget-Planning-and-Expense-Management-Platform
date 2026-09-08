@@ -1449,3 +1449,76 @@
     }
 
 }
+/* =========================================================
+   PATCH WORK 1 - PERIOD / HISTORY / GOAL LIFECYCLE
+========================================================= */
+.savings-period-type {
+    flex-wrap: wrap;
+}
+
+.savings-period-type > select:first-child {
+    flex-basis: 100%;
+}
+
+.savings-period-type input[type="date"] {
+    width: 130px;
+}
+
+.savings-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.savings-history-btn,
+.savings-toggle-btn {
+    border: 1px solid #405273;
+    background: #101a2d;
+    color: #cbd5e1;
+    border-radius: 9px;
+    padding: 9px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.savings-history-btn:hover,
+.savings-toggle-btn:hover {
+    border-color: #8b6be8;
+    color: #ffffff;
+}
+
+.savings-status.paused {
+    background: rgba(230, 163, 62, 0.12);
+    color: #f1b64e;
+}
+
+.savings-goal-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid #273751;
+    color: #8291a8;
+    font-size: 11px;
+}
+
+@media (max-width: 760px) {
+    .savings-header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .savings-header-actions .savings-search {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .savings-period-type input[type="date"] {
+        width: calc(50% - 4px);
+    }
+
+    .savings-goal-meta {
+        flex-direction: column;
+    }
+}

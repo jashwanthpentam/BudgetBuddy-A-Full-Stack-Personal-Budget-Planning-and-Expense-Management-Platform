@@ -1,7 +1,7 @@
 import API from "./api";
 
-export const getSavingsSummary = async () => {
-    const response = await API.get("/savings/summary/");
+export const getSavingsSummary = async (params = {}) => {
+    const response = await API.get("/savings/summary/", { params });
     return response.data;
 };
 
@@ -9,6 +9,11 @@ export const getSavingsGoals = async () => {
     const response = await API.get("/savings/");
     const data = response.data;
     return Array.isArray(data) ? data : (data?.results || []);
+};
+
+export const getSavingsHistory = async () => {
+    const response = await API.get("/savings/history/");
+    return Array.isArray(response.data) ? response.data : (response.data?.results || []);
 };
 
 export const createSavingsGoal = async (goalData) => {

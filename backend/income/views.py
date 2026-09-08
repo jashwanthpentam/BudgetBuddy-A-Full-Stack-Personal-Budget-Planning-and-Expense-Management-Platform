@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions
 from django.db.models import Sum
+from savings.services import refresh_goal_allocations
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from expenses.models import Expense
@@ -48,6 +49,7 @@ class IncomeListCreateView(generics.ListCreateAPIView):
         serializer.save(
             user=self.request.user
         )
+        refresh_goal_allocations(self.request.user)
 
 
 class IncomeDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -60,6 +62,15 @@ class IncomeDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Income.objects.filter(
             user=self.request.user
         )
+
+    def perform_update(self, serializer):
+        income = serializer.save()
+        refresh_goal_allocations(income.user)
+
+    def perform_destroy(self, instance):
+        user = instance.user
+        instance.delete()
+        refresh_goal_allocations(user)
 
 class TotalIncomeView(APIView):
 

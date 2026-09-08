@@ -12,6 +12,7 @@ from expenses.models import Expense
 from budgets.models import Budget
 from savings.models import SavingsGoal
 from savings.serializers import SavingsGoalSerializer
+from savings.services import refresh_goal_allocations
 from notifications.models import Notification
 
 
@@ -111,9 +112,17 @@ def dashboard_summary(request):
         reverse=True
     )
 
-    goals = SavingsGoal.objects.filter(user=request.user).order_by("target_date")
-    goal_data = SavingsGoalSerializer(goals, many=True).data
-    total_savings = sum((float(goal.get("saved_amount") or 0) for goal in goal_data), 0)
+    allocations, unallocated_savings = refresh_goal_allocations(request.user)
+    goals = SavingsGoal.objects.filter(user=request.user).order_by("is_finalized", "target_date", "-target_amount")
+    goal_data = SavingsGoalSerializer(
+        goals,
+        many=True,
+        context={"allocations": allocations},
+    ).data
+
+    # Patch Work 1: dashboard savings is the selected month's net savings,
+    # not the same lifetime balance repeated once for every goal.
+    total_savings = max(current_balance, Decimal("0"))
     completed_goals = sum(1 for goal in goal_data if goal.get("status") == "Completed")
     unread_notifications = Notification.objects.filter(user=request.user, is_read=False).count()
     recent_alerts = list(
@@ -138,6 +147,7 @@ def dashboard_summary(request):
 
         "recent_transactions": transactions[:10],
         "total_savings": total_savings,
+        "unallocated_savings": unallocated_savings,
         "savings_goals": goal_data[:5],
         "completed_goals": completed_goals,
         "unread_notifications": unread_notifications,
@@ -524,63 +534,34 @@ def analytics(request):
         Decimal("0")
     )
 
-    goals = SavingsGoal.objects.filter(
-        user=user
-    ).order_by("target_date")
+    allocations, _ = refresh_goal_allocations(user)
+    goals = SavingsGoal.objects.filter(user=user).order_by("is_finalized", "target_date", "-target_amount")
 
     savings_goals = []
+    active_targets = Decimal("0")
+    active_saved = Decimal("0")
 
     for goal in goals:
-
         target = goal.target_amount
+        saved = Decimal(goal.finalized_amount or 0) if goal.is_finalized else Decimal(allocations.get(goal.id, 0))
+        progress = min((saved / target) * Decimal("100"), Decimal("100")) if target > 0 else Decimal("0")
+        if goal.is_active and not goal.is_finalized:
+            active_targets += target
+            active_saved += saved
 
-        progress = (
-            min(
-                (total_saved / target) * Decimal("100"),
-                Decimal("100")
-            )
-            if target > 0
-            else Decimal("0")
-        )
+        savings_goals.append({
+            "id": goal.id,
+            "name": goal.goal_name,
+            "target_amount": target,
+            "saved_amount": saved,
+            "remaining_amount": max(target - saved, Decimal("0")),
+            "progress": round(float(progress), 2),
+            "target_date": goal.target_date,
+            "status": "Completed" if goal.is_finalized else ("In Progress" if goal.is_active else "Paused"),
+        })
 
-        savings_goals.append(
-            {
-                "id": goal.id,
-                "name": goal.goal_name,
-                "target_amount": target,
-                "saved_amount": total_saved,
-                "remaining_amount": max(
-                    target - total_saved,
-                    Decimal("0")
-                ),
-                "progress": round(
-                    float(progress),
-                    2
-                ),
-                "target_date": goal.target_date,
-                "status":
-                    "Completed"
-                    if progress >= 100
-                    else "In Progress"
-            }
-        )
-
-    total_target = sum(
-        (
-            goal.target_amount
-            for goal in goals
-        ),
-        Decimal("0")
-    )
-
-    overall_goal_progress = (
-        min(
-            (total_saved / total_target) * Decimal("100"),
-            Decimal("100")
-        )
-        if total_target > 0
-        else Decimal("0")
-    )
+    total_target = active_targets
+    overall_goal_progress = (active_saved / total_target * Decimal("100")) if total_target > 0 else Decimal("0")
 
     # ----------------------------------------
     # Financial insights

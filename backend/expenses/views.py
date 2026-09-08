@@ -10,6 +10,7 @@ from .serializers import ExpenseSerializer
 from budgets.models import Budget
 from budgets.utils import recalculate_budget_alert
 from notifications.utils import create_notification
+from savings.services import refresh_goal_allocations
 
 
 class ExpenseListCreateView(generics.ListCreateAPIView):
@@ -148,6 +149,8 @@ class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
             except Budget.DoesNotExist:
                 continue
 
+        refresh_goal_allocations(self.request.user)
+
     def perform_destroy(self, instance):
 
         try:
@@ -168,6 +171,8 @@ class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
                 self.request.user,
                 budget
             )
+
+        refresh_goal_allocations(self.request.user)
 
 
 class TotalExpenseView(APIView):
