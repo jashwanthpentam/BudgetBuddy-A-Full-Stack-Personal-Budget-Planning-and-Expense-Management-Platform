@@ -99,6 +99,10 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
             budget
         )
 
+        refresh_goal_allocations(
+            self.request.user
+        )
+
     
 
     

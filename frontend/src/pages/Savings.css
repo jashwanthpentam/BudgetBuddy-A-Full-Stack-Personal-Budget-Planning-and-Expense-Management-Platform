@@ -986,6 +986,17 @@
         rgba(54, 201, 143, 0.2);
 }
 
+.savings-status.not-achieved {
+    background:
+        rgba(245, 158, 11, 0.12);
+
+    color: #fbbf24;
+
+    border:
+        1px solid
+        rgba(245, 158, 11, 0.2);
+}
+
 
 /* =========================================================
    GOAL VALUES

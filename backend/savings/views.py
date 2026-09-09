@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Sum
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -53,7 +53,7 @@ class SavingsListCreateView(generics.ListCreateAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        allocations, _ = check_goal_deadlines(self.request.user)
+        allocations = check_goal_deadlines(self.request.user)
         context["allocations"] = allocations
         return context
 
@@ -67,6 +67,25 @@ class SavingsListCreateView(generics.ListCreateAPIView):
         )
         refresh_goal_allocations(self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        refresh_goal_allocations(request.user)
+        goal = SavingsGoal.objects.get(pk=serializer.instance.pk, user=request.user)
+        allocations = check_goal_deadlines(request.user)
+
+        data = SavingsGoalSerializer(
+            goal,
+            context={"request": request, "allocations": allocations},
+        ).data
+        return Response(
+            data,
+            status=status.HTTP_201_CREATED,
+            headers=self.get_success_headers(data),
+        )
+
 
 class SavingsDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SavingsGoalSerializer
@@ -77,13 +96,34 @@ class SavingsDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        allocations, _ = check_goal_deadlines(self.request.user)
+        allocations = check_goal_deadlines(self.request.user)
         context["allocations"] = allocations
         return context
 
     def perform_update(self, serializer):
         goal = serializer.save()
         refresh_goal_allocations(goal.user)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=partial,
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        refresh_goal_allocations(request.user)
+        instance.refresh_from_db()
+        allocations = check_goal_deadlines(request.user)
+
+        data = SavingsGoalSerializer(
+            instance,
+            context={"request": request, "allocations": allocations},
+        ).data
+        return Response(data)
 
     def perform_destroy(self, instance):
         user = instance.user
@@ -100,7 +140,7 @@ class GoalProgressAPIView(RetrieveAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         goal = self.get_object()
-        allocations, _ = check_goal_deadlines(request.user)
+        allocations = check_goal_deadlines(request.user)
         return Response(SavingsGoalSerializer(goal, context={"allocations": allocations}).data)
 
 
@@ -116,10 +156,12 @@ def savings_summary(request):
     except (ValueError, TypeError) as exc:
         return Response({"error": str(exc)}, status=400)
 
-    allocations, unallocated = check_goal_deadlines(request.user)
+    allocations = check_goal_deadlines(request.user)
+    _, unallocated = refresh_goal_allocations(request.user, notify=False)
     goals = list(SavingsGoal.objects.filter(user=request.user).order_by("target_date", "-target_amount", "id"))
     active_goals = [g for g in goals if g.is_active and not g.is_finalized]
     finalized_goals = [g for g in goals if g.is_finalized]
+    completed_goals = [g for g in finalized_goals if g.status == "Completed"]
     total_target = sum((Decimal(g.target_amount) for g in active_goals), Decimal("0"))
     active_saved = sum((Decimal(allocations.get(g.id, 0)) for g in active_goals), Decimal("0"))
     active_remaining = sum((max(Decimal(g.target_amount) - Decimal(allocations.get(g.id, 0)), Decimal("0")) for g in active_goals), Decimal("0"))
@@ -143,7 +185,7 @@ def savings_summary(request):
         "remaining_amount": active_remaining,
         "unallocated_savings": unallocated,
         "active_goals": len(active_goals),
-        "completed_goals": len(finalized_goals),
+        "completed_goals": len(completed_goals),
         "overall_progress": round(float(min(max(overall_progress, Decimal("0")), Decimal("100"))), 2),
     })
 
@@ -151,6 +193,6 @@ def savings_summary(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def savings_history(request):
-    allocations, _ = check_goal_deadlines(request.user)
+    allocations = check_goal_deadlines(request.user)
     goals = SavingsGoal.objects.filter(user=request.user, is_finalized=True).order_by("-finalized_at", "-target_date")
     return Response(SavingsGoalSerializer(goals, many=True, context={"allocations": allocations}).data)

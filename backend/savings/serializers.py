@@ -24,7 +24,7 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "user", "saved_amount", "remaining_amount", "progress_percentage",
-            "days_remaining", "status", "finalized_amount", "finalized_at",
+            "days_remaining", "status", "is_finalized", "finalized_amount", "finalized_at",
             "created_at", "updated_at",
         ]
 
@@ -53,7 +53,7 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         if obj.is_finalized:
-            return "Completed"
+            return obj.status or "Completed"
         return "In Progress" if obj.is_active else "Paused"
 
     def get_days_remaining(self, obj):
