@@ -1647,9 +1647,7 @@ export default function Savings() {
 
                                     type="number"
 
-                                    name="
-                                        target_amount
-                                    "
+                                    name="target_amount"
 
                                     min="0.01"
 
