@@ -104,7 +104,9 @@ export default function Budgets() {
   ===================================================== */
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     fetchBudgets();
+    // eslint-disable-next-line react-hooks/immutability
     fetchOverallSummary();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, year]);
@@ -229,24 +231,6 @@ export default function Budgets() {
     setEditingId(null);
   };
 
-
-  const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const allVisibleSelected = filteredBudgets.length > 0 && filteredBudgets.every((item) => selectedIds.includes(item.id));
-  const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredBudgets.map((item) => item.id));
-  const deleteSelected = async () => {
-    if (!selectedIds.length) return;
-    let impact;
-    try { impact = await getDeletionImpact("budget", selectedIds); }
-    catch { toast.error("Unable to analyze deletion impact."); return; }
-    if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected budget records", "Delete"))) return;
-    try {
-      await bulkDelete("budget", selectedIds);
-      setSelectedIds([]);
-      fetchBudgets();
-      fetchOverallSummary();
-      toast.success("Selected records deleted successfully.");
-    } catch (err) { toast.error(err?.response?.data?.error || "Bulk delete failed."); }
-  };
 
   /* =====================================================
      DELETE
@@ -388,6 +372,24 @@ export default function Budgets() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [budgets, searchTerm]);
+
+  const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const allVisibleSelected = filteredBudgets.length > 0 && filteredBudgets.every((item) => selectedIds.includes(item.id));
+  const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredBudgets.map((item) => item.id));
+  const deleteSelected = async () => {
+    if (!selectedIds.length) return;
+    let impact;
+    try { impact = await getDeletionImpact("budget", selectedIds); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected budget records", "Delete"))) return;
+    try {
+      await bulkDelete("budget", selectedIds);
+      setSelectedIds([]);
+      fetchBudgets();
+      fetchOverallSummary();
+      toast.success("Selected records deleted successfully.");
+    } catch (err) { toast.error(err?.response?.data?.error || "Bulk delete failed."); }
+  };
 
 
   /* =====================================================

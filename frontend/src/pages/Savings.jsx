@@ -296,6 +296,7 @@ export default function Savings() {
 
     useEffect(() => {
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadPage();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -553,23 +554,6 @@ export default function Savings() {
         }
     };
 
-
-    const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-    const allVisibleSelected = filteredGoals.length > 0 && filteredGoals.every((item) => selectedIds.includes(item.id));
-    const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredGoals.map((item) => item.id));
-    const deleteSelected = async () => {
-        if (!selectedIds.length) return;
-        let impact;
-        try { impact = await getDeletionImpact("savings", selectedIds); }
-        catch { toast.error("Unable to analyze deletion impact."); return; }
-        if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected savings goals", "Delete"))) return;
-        try {
-            await bulkDelete("savings", selectedIds);
-            setSelectedIds([]);
-            await loadPage();
-            toast.success("Selected savings goals deleted successfully.");
-        } catch (error) { toast.error(error?.response?.data?.error || "Bulk delete failed."); }
-    };
 
     // ============================================================
     // DELETE GOAL
@@ -970,6 +954,23 @@ export default function Savings() {
         ]
 
     );
+
+    const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    const allVisibleSelected = filteredGoals.length > 0 && filteredGoals.every((item) => selectedIds.includes(item.id));
+    const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredGoals.map((item) => item.id));
+    const deleteSelected = async () => {
+        if (!selectedIds.length) return;
+        let impact;
+        try { impact = await getDeletionImpact("savings", selectedIds); }
+        catch { toast.error("Unable to analyze deletion impact."); return; }
+        if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected savings goals", "Delete"))) return;
+        try {
+            await bulkDelete("savings", selectedIds);
+            setSelectedIds([]);
+            await loadPage();
+            toast.success("Selected savings goals deleted successfully.");
+        } catch (error) { toast.error(error?.response?.data?.error || "Bulk delete failed."); }
+    };
 
 
     // ============================================================
