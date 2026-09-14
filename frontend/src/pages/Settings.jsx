@@ -108,8 +108,10 @@ export default function Settings() {
 
     useEffect(() => {
 
+        // eslint-disable-next-line react-hooks/immutability
         fetchProfile();
 
+        // eslint-disable-next-line react-hooks/immutability
         fetchNotificationPreferences();
 
     }, []);

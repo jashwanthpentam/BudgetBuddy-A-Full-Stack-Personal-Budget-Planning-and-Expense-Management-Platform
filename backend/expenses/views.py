@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db.models import Sum
+from decimal import Decimal
 from rest_framework import generics, permissions
 from rest_framework.exceptions import ValidationError
 
@@ -8,6 +9,7 @@ from .models import Expense
 from .serializers import ExpenseSerializer
 
 from budgets.models import Budget
+from income.models import Income
 from budgets.utils import recalculate_budget_alert
 from notifications.utils import create_notification
 from savings.services import refresh_goal_allocations
@@ -126,6 +128,20 @@ class ExpenseDetailView(generics.RetrieveUpdateDestroyAPIView):
             old_instance.expense_date.month,
             old_instance.expense_date.year,
         )
+
+        category = serializer.validated_data.get("category", old_instance.category)
+        expense_date = serializer.validated_data.get("expense_date", old_instance.expense_date)
+        try:
+            new_budget = Budget.objects.get(user=self.request.user, category=category, month=expense_date.month, year=expense_date.year)
+        except Budget.DoesNotExist:
+            raise ValidationError({"error": f"No budget created for {category} in {expense_date.month}/{expense_date.year}. Create the budget before moving this expense."})
+
+        new_amount = serializer.validated_data.get("amount", old_instance.amount)
+        income_total = Income.objects.filter(user=self.request.user).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        expense_total = Expense.objects.filter(user=self.request.user).exclude(id=old_instance.id).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        available = income_total - expense_total
+        if new_amount > available:
+            raise ValidationError({"error": f"Expense update exceeds available balance. Available balance for this expense: ₹{available}. Requested amount: ₹{new_amount}."})
 
         expense = serializer.save()
 

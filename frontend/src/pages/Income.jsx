@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
+import BulkActions from "../components/BulkActions";
 import "./Income.css";
 import API from "../services/api";
 import useModuleDate from "../hooks/useModuleDate";
 import { getDashboardSummary } from "../services/dashboardService";
 
 import { toast, confirmAction } from "./toast";
+import { getDeletionImpact, formatDeletionImpact, bulkDelete } from "../services/deletionService";
 const SOURCE_LABELS = {
   SALARY: "Salary",
   POCKET_MONEY: "Pocket Money",
@@ -56,6 +58,7 @@ export default function Income() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const {
     month,
@@ -69,8 +72,11 @@ export default function Income() {
   ----------------------------- */
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     fetchIncome();
+    // eslint-disable-next-line react-hooks/immutability
     fetchTotalIncome();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceFilter, sortBy, month, year]);
 
   const fetchIncome = async () => {
@@ -239,16 +245,33 @@ export default function Income() {
     }
   };
 
+  const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const allVisibleSelected = filteredIncomes.length > 0 && filteredIncomes.every((item) => selectedIds.includes(item.id));
+  const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredIncomes.map((item) => item.id));
+  const deleteSelected = async () => {
+    if (!selectedIds.length) return;
+    let impact;
+    try { impact = await getDeletionImpact("income", selectedIds); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected income records", "Delete"))) return;
+    try {
+      await bulkDelete("income", selectedIds);
+      setSelectedIds([]);
+      fetchIncome();
+      fetchTotalIncome();
+      toast.success("Selected records deleted successfully.");
+    } catch (err) { toast.error(err?.response?.data?.error || "Bulk delete failed."); }
+  };
+
   /* -----------------------------
      DELETE
   ----------------------------- */
 
   const deleteIncome = async (id) => {
-    const confirmed = await confirmAction(
-      "Are you sure you want to delete this income?",
-      "Delete income",
-      "Delete"
-    );
+    let impact;
+    try { impact = await getDeletionImpact("income", [id]); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    const confirmed = await confirmAction(formatDeletionImpact(impact), "Delete income", "Delete");
 
     if (!confirmed) {
       return;
@@ -730,6 +753,8 @@ export default function Income() {
               TABLE
           ========================= */}
 
+          <BulkActions count={selectedIds.length} allSelected={allVisibleSelected} onToggleAll={toggleSelectAll} onDelete={deleteSelected} label="income records" />
+
           <div className="income-table-wrapper">
 
             <table className="income-table">
@@ -737,6 +762,7 @@ export default function Income() {
               <thead>
 
                 <tr>
+                  <th><input type="checkbox" aria-label="Select all" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
                   <th>Date</th>
                   <th>Source</th>
                   <th>Description</th>
@@ -752,7 +778,7 @@ export default function Income() {
 
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="table-message"
                     >
                       Loading income records...
@@ -763,7 +789,7 @@ export default function Income() {
 
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="table-message"
                     >
 
@@ -792,6 +818,7 @@ export default function Income() {
                   filteredIncomes.map((income) => (
 
                     <tr key={income.id}>
+                      <td><input type="checkbox" aria-label="Select income" checked={selectedIds.includes(income.id)} onChange={() => toggleSelection(income.id)} /></td>
 
                       <td>
                         <span className="date-text">

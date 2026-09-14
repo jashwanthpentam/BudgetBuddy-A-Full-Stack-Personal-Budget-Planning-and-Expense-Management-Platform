@@ -167,6 +167,7 @@ function ensureStyles() {
       font-weight: 600;
 
       overflow-wrap: anywhere;
+      white-space: pre-line;
     }
 
     .bb-toast-close {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
+import BulkActions from "../components/BulkActions";
 import API from "../services/api";
 import { getDashboardSummary } from "../services/dashboardService";
 import useModuleDate from "../hooks/useModuleDate";
 import "./Expenses.css";
 
 import { toast, confirmAction } from "./toast";
+import { getDeletionImpact, formatDeletionImpact, bulkDelete } from "../services/deletionService";
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
 
@@ -19,6 +21,7 @@ export default function Expenses() {
   const [totalExpense, setTotalExpense] = useState(0);
 
   const [editingId, setEditingId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const [categoryFilter, setCategoryFilter] = useState("");
 
@@ -38,8 +41,11 @@ export default function Expenses() {
   ===================================================== */
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     fetchExpenses();
+    // eslint-disable-next-line react-hooks/immutability
     fetchTotalExpense();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryFilter, sortBy, month, year]);
 
   const fetchExpenses = async () => {
@@ -186,16 +192,33 @@ export default function Expenses() {
     setEditingId(null);
   };
 
+  const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const allVisibleSelected = filteredExpenses.length > 0 && filteredExpenses.every((item) => selectedIds.includes(item.id));
+  const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredExpenses.map((item) => item.id));
+  const deleteSelected = async () => {
+    if (!selectedIds.length) return;
+    let impact;
+    try { impact = await getDeletionImpact("expense", selectedIds); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected expense records", "Delete"))) return;
+    try {
+      await bulkDelete("expense", selectedIds);
+      setSelectedIds([]);
+      fetchExpenses();
+      fetchTotalExpense();
+      toast.success("Selected records deleted successfully.");
+    } catch (err) { toast.error(err?.response?.data?.error || "Bulk delete failed."); }
+  };
+
   /* =====================================================
      DELETE EXPENSE
   ===================================================== */
 
   const deleteExpense = async (id) => {
-    const confirmDelete = await confirmAction(
-      "Are you sure you want to delete this expense?",
-      "Delete expense",
-      "Delete"
-    );
+    let impact;
+    try { impact = await getDeletionImpact("expense", [id]); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    const confirmDelete = await confirmAction(formatDeletionImpact(impact), "Delete expense", "Delete");
 
     if (!confirmDelete) return;
 
@@ -796,6 +819,8 @@ export default function Expenses() {
               TABLE
           ============================================== */}
 
+          <BulkActions count={selectedIds.length} allSelected={allVisibleSelected} onToggleAll={toggleSelectAll} onDelete={deleteSelected} label="expense records" />
+
           <div className="expense-table-wrapper">
 
             <table className="expense-table">
@@ -803,6 +828,7 @@ export default function Expenses() {
               <thead>
 
                 <tr>
+                  <th><input type="checkbox" aria-label="Select all" checked={allVisibleSelected} onChange={toggleSelectAll} /></th>
                   <th>Date</th>
                   <th>Category</th>
                   <th>Description</th>
@@ -820,7 +846,7 @@ export default function Expenses() {
                   <tr>
 
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="expense-table-message"
                     >
 
@@ -853,6 +879,7 @@ export default function Expenses() {
                       <tr
                         key={expense.id}
                       >
+                        <td><input type="checkbox" aria-label="Select expense" checked={selectedIds.includes(expense.id)} onChange={() => toggleSelection(expense.id)} /></td>
 
                         <td>
                           <span className="expense-date">

@@ -53,8 +53,10 @@ function Analytics() {
 
     useEffect(() => {
 
+        // eslint-disable-next-line react-hooks/immutability
         loadAnalytics();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [globalMonth, globalYear]);
 
 

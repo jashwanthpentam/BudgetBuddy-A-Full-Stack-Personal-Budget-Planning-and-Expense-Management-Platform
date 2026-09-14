@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
+import BulkActions from "../components/BulkActions";
 import "./Savings.css";
 
 import {
@@ -13,6 +14,7 @@ import {
 
 import useModuleDate from "../hooks/useModuleDate";
 import { toast, confirmAction } from "./toast";
+import { getDeletionImpact, formatDeletionImpact, bulkDelete } from "../services/deletionService";
 
 
 const monthNames = [
@@ -106,6 +108,8 @@ export default function Savings() {
 
     const [formData, setFormData] =
         useState(INITIAL_FORM);
+
+    const [selectedIds, setSelectedIds] = useState([]);
 
 
     const {
@@ -294,6 +298,7 @@ export default function Savings() {
 
         loadPage();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         periodType,
         month,
@@ -549,6 +554,23 @@ export default function Savings() {
     };
 
 
+    const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    const allVisibleSelected = filteredGoals.length > 0 && filteredGoals.every((item) => selectedIds.includes(item.id));
+    const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredGoals.map((item) => item.id));
+    const deleteSelected = async () => {
+        if (!selectedIds.length) return;
+        let impact;
+        try { impact = await getDeletionImpact("savings", selectedIds); }
+        catch { toast.error("Unable to analyze deletion impact."); return; }
+        if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected savings goals", "Delete"))) return;
+        try {
+            await bulkDelete("savings", selectedIds);
+            setSelectedIds([]);
+            await loadPage();
+            toast.success("Selected savings goals deleted successfully.");
+        } catch (error) { toast.error(error?.response?.data?.error || "Bulk delete failed."); }
+    };
+
     // ============================================================
     // DELETE GOAL
     // ============================================================
@@ -557,16 +579,14 @@ export default function Savings() {
         goal
     ) => {
 
-        const confirmed =
-            await confirmAction(
-
-                "Are you sure you want to delete this savings goal?",
-
-                "Delete savings goal",
-
-                "Delete"
-
-            );
+        let impact;
+        try { impact = await getDeletionImpact("savings", [goal.id]); }
+        catch { toast.error("Unable to analyze deletion impact."); return; }
+        const confirmed = await confirmAction(
+            formatDeletionImpact(impact),
+            "Delete savings goal",
+            "Delete"
+        );
 
 
         if (!confirmed) {
@@ -1923,7 +1943,10 @@ export default function Savings() {
 
                             : (
 
-                                filteredGoals.map(
+                                <>
+                                <BulkActions count={selectedIds.length} allSelected={allVisibleSelected} onToggleAll={toggleSelectAll} onDelete={deleteSelected} label="savings goals" />
+
+                                {filteredGoals.map(
                                     (goal) => (
 
                                         <GoalCard
@@ -1952,10 +1975,14 @@ export default function Savings() {
                                                 handleActiveToggle
                                             }
 
+                                            selected={selectedIds.includes(goal.id)}
+                                            onSelect={() => toggleSelection(goal.id)}
+
                                         />
 
                                     )
-                                )
+                                )}
+                                </>
 
                             )
 
@@ -2036,6 +2063,8 @@ function GoalCard({
     onEdit,
     onDelete,
     onToggle,
+    selected,
+    onSelect,
 }) {
 
     const progress =
@@ -2128,6 +2157,8 @@ function GoalCard({
                 savings-goal-card
             "
         >
+
+            <label style={{display:"block",marginBottom:8}}><input type="checkbox" aria-label="Select savings goal" checked={selected} onChange={onSelect} /></label>
 
 
             {/* HEADER */}

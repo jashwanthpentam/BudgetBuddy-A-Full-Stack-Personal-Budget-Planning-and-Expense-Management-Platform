@@ -1,7 +1,13 @@
 from calendar import month_name
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Sum
+
+from rest_framework.views import APIView
+from rest_framework.exceptions import ValidationError
+
+from budgets.utils import recalculate_budget_alert
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -29,8 +35,15 @@ def dashboard_summary(request):
             status=400
         )
 
-    month = int(month)
-    year = int(year)
+    try:
+        month = int(month)
+        year = int(year)
+    except (TypeError, ValueError):
+        return Response({"error": "month and year must be valid numbers."}, status=400)
+    if not 1 <= month <= 12:
+        return Response({"error": "month must be between 1 and 12."}, status=400)
+    if not 2000 <= year <= 2100:
+        return Response({"error": "year must be between 2000 and 2100."}, status=400)
 
     # ---------- Income ----------
 
@@ -698,3 +711,63 @@ def analytics(request):
             "insights": insights
         }
     )
+
+# Patch Work 2: consequence-aware deletion and user-scoped bulk deletion.
+# Kept in the existing dashboard views module to preserve the project architecture.
+MODELS = {
+    "income": Income,
+    "expense": Expense,
+    "budget": Budget,
+    "savings": SavingsGoal,
+    "notification": Notification,
+}
+
+
+class DeletionImpactView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        resource = request.query_params.get("resource")
+        raw_ids = request.query_params.get("ids", "")
+        if resource not in MODELS or not raw_ids.strip():
+            raise ValidationError({"error": "resource and comma-separated ids are required."})
+        try:
+            ids = [int(value.strip()) for value in raw_ids.split(",") if value.strip()]
+        except (TypeError, ValueError):
+            raise ValidationError({"error": "ids must contain numeric values."})
+        if not ids:
+            raise ValidationError({"error": "At least one id is required."})
+        from .services import deletion_impact
+        return Response(deletion_impact(request.user, resource, ids))
+
+
+class BulkDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        resource = request.data.get("resource")
+        ids = request.data.get("ids", [])
+        if resource not in MODELS:
+            raise ValidationError({"error": "Unsupported resource."})
+        if not isinstance(ids, list) or not ids:
+            raise ValidationError({"error": "resource and a non-empty ids list are required."})
+        try:
+            ids = [int(value) for value in ids]
+        except (TypeError, ValueError):
+            raise ValidationError({"error": "ids must contain numeric values."})
+
+        model = MODELS[resource]
+        with transaction.atomic():
+            queryset = model.objects.filter(user=request.user, id__in=ids)
+            deleted_count = queryset.count()
+            if deleted_count == 0:
+                return Response({"deleted": 0})
+            queryset.delete()
+
+            if resource in {"income", "expense", "savings"}:
+                refresh_goal_allocations(request.user, notify=False)
+            if resource in {"income", "expense", "budget"}:
+                for budget in Budget.objects.filter(user=request.user):
+                    recalculate_budget_alert(request.user, budget)
+
+        return Response({"deleted": deleted_count}, status=200)

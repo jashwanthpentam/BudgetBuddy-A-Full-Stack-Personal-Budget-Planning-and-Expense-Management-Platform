@@ -1,8 +1,10 @@
+import BulkActions from "../components/BulkActions";
+import { getDeletionImpact, formatDeletionImpact, bulkDelete } from "../services/deletionService";
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
 import API from "../services/api";
 import "./Notifications.css";
-import { confirmAction } from "./toast";
+import { toast, confirmAction } from "./toast";
 
 
 function Notifications() {
@@ -10,6 +12,7 @@ function Notifications() {
     const [notifications, setNotifications] = useState([]);
 
     const [loading, setLoading] = useState(true);
+    const [selectedIds, setSelectedIds] = useState([]);
 
     const [error, setError] = useState("");
 
@@ -89,7 +92,37 @@ function Notifications() {
 
     useEffect(() => {
 
-        fetchNotifications();
+        let mounted = true;
+
+        const loadNotifications = async () => {
+            try {
+                const response = await API.get("/notifications/");
+                const data = response.data;
+                const items = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.results)
+                        ? data.results
+                        : [];
+
+                if (mounted) {
+                    setNotifications(items);
+                    setError("");
+                    setLoading(false);
+                }
+            } catch (error) {
+                console.error("Failed to load notifications:", error);
+                if (mounted) {
+                    setError("Unable to load notifications.");
+                    setLoading(false);
+                }
+            }
+        };
+
+        void loadNotifications();
+
+        return () => {
+            mounted = false;
+        };
 
     }, []);
 
@@ -285,6 +318,23 @@ function Notifications() {
     };
 
 
+    const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    const allVisibleSelected = filteredNotifications.length > 0 && filteredNotifications.every((item) => selectedIds.includes(item.id));
+    const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredNotifications.map((item) => item.id));
+    const deleteSelected = async () => {
+        if (!selectedIds.length) return;
+        let impact;
+        try { impact = await getDeletionImpact("notification", selectedIds); }
+        catch { toast.error("Unable to analyze deletion impact."); return; }
+        if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected notifications", "Delete"))) return;
+        try {
+            await bulkDelete("notification", selectedIds);
+            setNotifications(previous => previous.filter((n) => !selectedIds.includes(n.id)));
+            setSelectedIds([]);
+            toast.success("Selected notifications deleted successfully.");
+        } catch (error) { toast.error(error?.response?.data?.error || "Bulk delete failed."); }
+    };
+
     /* ============================= */
     /* DELETE */
     /* ============================= */
@@ -293,8 +343,10 @@ function Notifications() {
         notificationId
     ) => {
 
-        const confirmed =
-            await confirmAction("Delete this notification?", "Delete notification");
+        let impact;
+        try { impact = await getDeletionImpact("notification", [notificationId]); }
+        catch { toast.error("Unable to analyze deletion impact."); return; }
+        const confirmed = await confirmAction(formatDeletionImpact(impact), "Delete notification", "Delete");
 
 
         if (!confirmed) {
@@ -428,7 +480,8 @@ function Notifications() {
 
         <MainLayout title="Notifications">
 
-            <div className="notifications-page">
+
+                                        <div className="notifications-page">
 
 
                 {/* PAGE HEADER */}
@@ -765,8 +818,10 @@ function Notifications() {
 
                         <div className="notification-list">
 
-                            {
-                                filteredNotifications.map(
+                            <>
+                                <BulkActions count={selectedIds.length} allSelected={allVisibleSelected} onToggleAll={toggleSelectAll} onDelete={deleteSelected} label="notifications" />
+
+                                {filteredNotifications.map(
                                     notification => {
 
                                         const type =
@@ -792,6 +847,16 @@ function Notifications() {
                                                 }
                                             >
 
+                                                <label
+                                                    style={{ position: "absolute", left: 12, top: 12, zIndex: 2 }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        aria-label={`Select notification ${notification.id}`}
+                                                        checked={selectedIds.includes(notification.id)}
+                                                        onChange={() => toggleSelection(notification.id)}
+                                                    />
+                                                </label>
 
                                                 {/* APP BRAND MARK */}
 
@@ -950,8 +1015,8 @@ function Notifications() {
                                         );
 
                                     }
-                                )
-                            }
+                                )}
+                            </>
 
                         </div>
 

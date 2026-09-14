@@ -88,6 +88,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
             })
 
         budget = serializer.save(user=self.request.user)
+        recalculate_budget_alert(self.request.user, budget)
 
         create_notification(
             user=self.request.user,
@@ -149,12 +150,16 @@ class BudgetViewSet(viewsets.ModelViewSet):
         budget.warning_100_sent = False
         budget.warning_exceeded_sent = False
 
+        old_key = (budget.category, budget.month, budget.year)
         budget = serializer.save()
 
-        recalculate_budget_alert(
-                self.request.user,
-                budget
-            )
+        # Recalculate both the old and new period/category when an edit moves a budget.
+        for category, m, y in {old_key, (budget.category, budget.month, budget.year)}:
+            try:
+                affected = Budget.objects.get(user=self.request.user, category=category, month=m, year=y)
+                recalculate_budget_alert(self.request.user, affected)
+            except Budget.DoesNotExist:
+                pass
         create_notification(
             user=self.request.user,
             title="Budget Updated",

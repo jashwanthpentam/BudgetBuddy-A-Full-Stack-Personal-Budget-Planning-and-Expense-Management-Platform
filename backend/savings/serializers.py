@@ -65,7 +65,7 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
 
         if target_amount is not None and target_amount <= 0:
             raise serializers.ValidationError({"target_amount": "Target amount must be greater than 0."})
-        if self.instance is None and target_date and target_date < date.today():
+        if target_date and not (self.instance and self.instance.is_finalized) and target_date < date.today():
             raise serializers.ValidationError({"target_date": "Target date cannot be in the past."})
         if self.instance and self.instance.is_finalized and any(
             key in data for key in ("target_amount", "target_date", "is_active")

@@ -19,6 +19,7 @@ function Login() {
     useEffect(() => {
         const remembered = localStorage.getItem("rememberedUsername");
         if (remembered) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setUsername(remembered);
             setRememberMe(true);
         }

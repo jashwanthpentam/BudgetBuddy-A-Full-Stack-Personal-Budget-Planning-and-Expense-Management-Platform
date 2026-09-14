@@ -143,8 +143,10 @@ export default function Dashboard() {
 
     useEffect(() => {
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchDashboard();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         globalMonth,
         globalYear

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
+import BulkActions from "../components/BulkActions";
 import API from "../services/api";
 import { getDashboardSummary } from "../services/dashboardService";
 import useModuleDate from "../hooks/useModuleDate";
 import { toast, confirmAction } from "./toast";
+import { getDeletionImpact, formatDeletionImpact, bulkDelete } from "../services/deletionService";
 import "./Budgets.css";
 
 export default function Budgets() {
@@ -17,6 +19,7 @@ export default function Budgets() {
   });
 
   const [editingId, setEditingId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const [summary, setSummary] = useState({
     budget_amount: 0,
@@ -103,6 +106,7 @@ export default function Budgets() {
   useEffect(() => {
     fetchBudgets();
     fetchOverallSummary();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, year]);
 
 
@@ -226,16 +230,33 @@ export default function Budgets() {
   };
 
 
+  const toggleSelection = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const allVisibleSelected = filteredBudgets.length > 0 && filteredBudgets.every((item) => selectedIds.includes(item.id));
+  const toggleSelectAll = () => setSelectedIds(allVisibleSelected ? [] : filteredBudgets.map((item) => item.id));
+  const deleteSelected = async () => {
+    if (!selectedIds.length) return;
+    let impact;
+    try { impact = await getDeletionImpact("budget", selectedIds); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    if (!(await confirmAction(formatDeletionImpact(impact), "Delete selected budget records", "Delete"))) return;
+    try {
+      await bulkDelete("budget", selectedIds);
+      setSelectedIds([]);
+      fetchBudgets();
+      fetchOverallSummary();
+      toast.success("Selected records deleted successfully.");
+    } catch (err) { toast.error(err?.response?.data?.error || "Bulk delete failed."); }
+  };
+
   /* =====================================================
      DELETE
   ===================================================== */
 
   const deleteBudget = async (id) => {
-    const confirmed = await confirmAction(
-      "Are you sure you want to delete this budget?",
-      "Delete budget",
-      "Delete"
-    );
+    let impact;
+    try { impact = await getDeletionImpact("budget", [id]); }
+    catch { toast.error("Unable to analyze deletion impact."); return; }
+    const confirmed = await confirmAction(formatDeletionImpact(impact), "Delete budget", "Delete");
 
     if (!confirmed) {
       return;
@@ -365,6 +386,7 @@ export default function Budgets() {
         ).includes(search)
       );
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [budgets, searchTerm]);
 
 
@@ -939,6 +961,8 @@ export default function Budgets() {
 
           {/* TABLE */}
 
+          <BulkActions count={selectedIds.length} allSelected={allVisibleSelected} onToggleAll={toggleSelectAll} onDelete={deleteSelected} label="budget records" />
+
           <div className="budget-table-wrapper">
 
             <table className="budget-table">
@@ -983,7 +1007,7 @@ export default function Budgets() {
                   <tr>
 
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       className="budget-table-message"
                     >
 
@@ -1017,6 +1041,7 @@ export default function Budgets() {
                       <tr
                         key={budget.id}
                       >
+                        <td><input type="checkbox" aria-label="Select budget" checked={selectedIds.includes(budget.id)} onChange={() => toggleSelection(budget.id)} /></td>
 
                         {/* Category */}
 
