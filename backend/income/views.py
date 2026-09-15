@@ -9,6 +9,9 @@ from .models import Income
 from .serializers import IncomeSerializer
 from budgets.models import Budget
 from django.db.models import Sum
+from django.db import transaction
+from budgets.utils import recalculate_budget_alert
+from dashboard.services import delete_income_with_dependencies
 
 class IncomeListCreateView(generics.ListCreateAPIView):
 
@@ -69,8 +72,13 @@ class IncomeDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         user = instance.user
-        instance.delete()
-        refresh_goal_allocations(user)
+        with transaction.atomic():
+            _, deleted_budgets, deleted_expenses = delete_income_with_dependencies(
+                user, Income.objects.filter(id=instance.id, user=user)
+            )
+            refresh_goal_allocations(user, notify=False)
+            for budget in Budget.objects.filter(user=user):
+                recalculate_budget_alert(user, budget)
 
 class TotalIncomeView(APIView):
 

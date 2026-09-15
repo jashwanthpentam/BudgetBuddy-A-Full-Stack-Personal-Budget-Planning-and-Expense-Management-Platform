@@ -761,13 +761,35 @@ class BulkDeleteView(APIView):
             queryset = model.objects.filter(user=request.user, id__in=ids)
             deleted_count = queryset.count()
             if deleted_count == 0:
-                return Response({"deleted": 0})
-            queryset.delete()
+                return Response({"deleted": 0, "deleted_budgets": 0, "deleted_expenses": 0})
 
-            if resource in {"income", "expense", "savings"}:
+            deleted_budget_count = 0
+            deleted_expense_count = 0
+
+            if resource == "budget":
+                from .services import delete_budget_with_dependencies
+                deleted_budget_count, deleted_expense_count = delete_budget_with_dependencies(
+                    request.user, queryset
+                )
+            elif resource == "income":
+                from .services import delete_income_with_dependencies
+                deleted_count, deleted_budget_count, deleted_expense_count = delete_income_with_dependencies(
+                    request.user, queryset
+                )
+            else:
+                queryset.delete()
+
+            if resource in {"income", "expense", "budget", "savings"}:
                 refresh_goal_allocations(request.user, notify=False)
             if resource in {"income", "expense", "budget"}:
                 for budget in Budget.objects.filter(user=request.user):
                     recalculate_budget_alert(request.user, budget)
 
-        return Response({"deleted": deleted_count}, status=200)
+        return Response(
+            {
+                "deleted": deleted_count,
+                "deleted_budgets": deleted_budget_count,
+                "deleted_expenses": deleted_expense_count,
+            },
+            status=200,
+        )

@@ -278,7 +278,7 @@ export default function Income() {
     }
 
     try {
-      await API.delete(`/income/${id}/`);
+      await bulkDelete("income", [id]);
 
       await fetchIncome();
       await fetchTotalIncome();

@@ -10,6 +10,12 @@ from django.db.models import Sum
 from notifications.utils import create_notification
 from expenses.models import Expense
 from .utils import recalculate_budget_alert
+from django.db import transaction
+from dashboard.services import (
+    delete_budget_with_dependencies,
+    get_dependent_expenses,
+)
+from savings.services import refresh_goal_allocations
 
 class BudgetViewSet(viewsets.ModelViewSet):
     serializer_class = BudgetSerializer
@@ -102,6 +108,19 @@ class BudgetViewSet(viewsets.ModelViewSet):
         )
 
     
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        with transaction.atomic():
+            dependent_count = get_dependent_expenses(request.user, Budget.objects.filter(id=instance.id)).count()
+            delete_budget_with_dependencies(
+                request.user, Budget.objects.filter(id=instance.id)
+            )
+            refresh_goal_allocations(request.user, notify=False)
+            for budget in Budget.objects.filter(user=request.user):
+                recalculate_budget_alert(request.user, budget)
+
+        return Response({"deleted": 1, "deleted_expenses": dependent_count})
 
     def perform_update(self, serializer):
 
