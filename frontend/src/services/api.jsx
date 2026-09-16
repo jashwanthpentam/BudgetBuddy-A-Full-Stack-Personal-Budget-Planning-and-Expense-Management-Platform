@@ -14,6 +14,8 @@ const PUBLIC_ROUTES = [
     "/token/refresh/",
     "/users/password-reset/request/",
     "/users/password-reset/confirm/",
+    "/users/password-reset/request-otp/",
+    "/users/password-reset/confirm-otp/",
 ];
 
 const isPublicRequest = (url = "") => {

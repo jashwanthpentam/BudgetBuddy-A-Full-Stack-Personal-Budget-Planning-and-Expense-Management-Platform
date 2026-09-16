@@ -32,6 +32,8 @@ return(
 
 <Route path="/forgot-password" element={<ForgotPassword/>}/>
 
+<Route path="/reset-password" element={<ResetPassword/>}/>
+
 <Route path="/reset-password/:uid/:token" element={<ResetPassword/>}/>
 
 <Route path="/home" element={<Home/>}/>

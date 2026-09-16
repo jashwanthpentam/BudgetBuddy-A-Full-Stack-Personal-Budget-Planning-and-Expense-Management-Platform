@@ -6,12 +6,17 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils import timezone
+from datetime import timedelta
+import secrets
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Profile
+from .models import Profile, PasswordResetOTP
 
 from .serializers import (
     RegisterSerializer,
@@ -32,6 +37,23 @@ class RegisterView(
     queryset = User.objects.all()
 
     serializer_class = RegisterSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response(
+            {
+                "message": "Account created successfully.",
+                "username": user.username,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # =========================================================
@@ -233,6 +255,14 @@ class BudgetBuddyTokenObtainPairView(TokenObtainPairView):
 # =========================================================
 
 class PasswordResetRequestView(generics.GenericAPIView):
+    """Legacy password-reset endpoint kept for compatibility.
+
+    New frontend flows use the OTP endpoint below. This endpoint still accepts
+    username/email and generates a reset link, but derives the frontend origin
+    from the request when available so production links never default to
+    localhost.
+    """
+
     permission_classes = []
 
     def post(self, request):
@@ -240,13 +270,13 @@ class PasswordResetRequestView(generics.GenericAPIView):
 
         if not identifier:
             return Response(
-                {"error": "Enter your username or email address."},
+                {"error": "Enter your username or registered email address."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         user = (
-            User.objects.filter(email__iexact=identifier).first()
-            or User.objects.filter(username__iexact=identifier).first()
+            User.objects.filter(username__iexact=identifier).first()
+            or User.objects.filter(email__iexact=identifier).first()
         )
 
         generic_message = (
@@ -260,7 +290,8 @@ class PasswordResetRequestView(generics.GenericAPIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
         frontend_base = (
-            getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173")
+            request.headers.get("Origin")
+            or getattr(settings, "FRONTEND_BASE_URL", "")
             or "http://localhost:5173"
         ).rstrip("/")
         reset_url = f"{frontend_base}/reset-password/{uid}/{token}"
@@ -268,7 +299,6 @@ class PasswordResetRequestView(generics.GenericAPIView):
         from notifications.utils import send_branded_email
 
         html_body = f"""
-        <p>Hello <strong>{user.username}</strong>,</p>
         <p>We received a request to reset your BudgetBuddy password.</p>
         <p>
             <a href="{reset_url}"
@@ -297,19 +327,162 @@ class PasswordResetRequestView(generics.GenericAPIView):
 
         if not sent:
             return Response(
-                {
-                    "error": (
-                        "Unable to send reset instructions right now. "
-                        "Please try again later."
-                    )
-                },
+                {"error": "Unable to send reset instructions right now. Please try again later."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         return Response({"message": generic_message})
 
 
+class PasswordResetOTPRequestView(generics.GenericAPIView):
+    """Identify a user by username and send a verification OTP to their registered email."""
+
+    permission_classes = []
+
+    def post(self, request):
+        username = str(request.data.get("username") or "").strip()
+        generic_message = (
+            "If an account matches that username, a verification code has "
+            "been sent to its registered email address."
+        )
+
+        if not username:
+            return Response(
+                {"error": "Enter your username."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(username__iexact=username).first()
+        if not user or not user.is_active or not user.email:
+            return Response({"message": generic_message})
+
+        PasswordResetOTP.objects.filter(
+            user=user,
+            used_at__isnull=True,
+        ).update(used_at=timezone.now())
+
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+        otp_record = PasswordResetOTP.objects.create(
+            user=user,
+            code_hash=make_password(otp),
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+
+        from notifications.utils import send_branded_email
+
+        html_body = f"""
+        <p>We received a request to reset your BudgetBuddy password.</p>
+        <p>Your verification code is:</p>
+        <div style="margin:18px 0;padding:16px 20px;text-align:center;
+                    background:#f8fafc;border:1px solid #e5e7eb;
+                    border-radius:10px;font-size:30px;letter-spacing:8px;
+                    font-weight:800;color:#0f172a;">
+            {otp}
+        </div>
+        <p>This code expires in <strong>10 minutes</strong> and can only be used once.</p>
+        <p>If you did not request this, you can safely ignore this email.</p>
+        """
+        text_body = (
+            f"Hello {user.username},\n\n"
+            f"Your BudgetBuddy password reset verification code is {otp}.\n"
+            "This code expires in 10 minutes and can only be used once.\n\n"
+            "If you did not request this, you can safely ignore this email."
+        )
+
+        sent = send_branded_email(
+            user,
+            "BudgetBuddy | Password Reset Verification Code",
+            "Verify your password reset",
+            html_body,
+            text_body,
+        )
+
+        if not sent:
+            otp_record.used_at = timezone.now()
+            otp_record.save(update_fields=["used_at"])
+            return Response(
+                {"error": "Unable to send the verification code right now. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response({"message": generic_message})
+
+
+class PasswordResetOTPConfirmView(generics.GenericAPIView):
+    """Verify the emailed OTP and set a new password."""
+
+    permission_classes = []
+
+    def post(self, request):
+        username = str(request.data.get("username") or "").strip()
+        otp = str(request.data.get("otp") or "").strip()
+        password = request.data.get("password") or ""
+
+        if not username or not otp or not password:
+            return Response(
+                {"error": "Username, verification code, and new password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not otp.isdigit() or len(otp) != 6:
+            return Response(
+                {"error": "Enter the 6-digit verification code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = User.objects.filter(username__iexact=username).first()
+        if not user or not user.is_active:
+            return Response(
+                {"error": "Invalid or expired verification code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        otp_record = PasswordResetOTP.objects.filter(
+            user=user,
+            used_at__isnull=True,
+        ).first()
+
+        if not otp_record or otp_record.expires_at <= timezone.now():
+            return Response(
+                {"error": "Invalid or expired verification code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp_record.attempts >= 5:
+            return Response(
+                {"error": "Too many verification attempts. Request a new code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not check_password(otp, otp_record.code_hash):
+            otp_record.attempts += 1
+            otp_record.save(update_fields=["attempts"])
+            return Response(
+                {"error": "Invalid or expired verification code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": " ".join(exc.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        otp_record.used_at = timezone.now()
+        otp_record.save(update_fields=["used_at"])
+
+        return Response({
+            "message": "Password reset successfully. You can now sign in."
+        })
+
+
 class PasswordResetConfirmView(generics.GenericAPIView):
+    """Legacy token confirmation retained for older reset links."""
+
     permission_classes = []
 
     def post(self, request):
@@ -346,3 +519,4 @@ class PasswordResetConfirmView(generics.GenericAPIView):
         return Response({
             "message": "Password reset successfully. You can now sign in."
         })
+

@@ -4,7 +4,7 @@ import API from "../services/api";
 import "./AuthRecovery.css";
 
 export default function ForgotPassword() {
-    const [identifier, setIdentifier] = useState("");
+    const [username, setUsername] = useState("");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -14,17 +14,18 @@ export default function ForgotPassword() {
         setMessage("");
         setError("");
 
-        if (!identifier.trim()) {
-            setError("Enter your username or registered email address.");
+        if (!username.trim()) {
+            setError("Enter your username.");
             return;
         }
 
         try {
             setLoading(true);
             const response = await API.post(
-                "/users/password-reset/request/",
-                { identifier: identifier.trim() },
+                "/users/password-reset/request-otp/",
+                { username: username.trim() },
             );
+            sessionStorage.setItem("passwordResetUsername", username.trim());
             setMessage(response.data.message);
         } catch (requestError) {
             setError(
@@ -49,33 +50,40 @@ export default function ForgotPassword() {
 
                 <h1>Forgot your password?</h1>
                 <p>
-                    Enter your username or registered email and we&apos;ll
-                    send password-reset instructions if the account can be
-                    recovered by email.
+                    Enter your username and we&apos;ll send a one-time
+                    verification code to the email registered with your
+                    BudgetBuddy account.
                 </p>
 
                 <form className="recovery-form" onSubmit={submit}>
-                    <label htmlFor="recovery-identifier">
-                        Username or email
+                    <label htmlFor="recovery-username">
+                        Username
                     </label>
                     <input
-                        id="recovery-identifier"
+                        id="recovery-username"
                         type="text"
-                        value={identifier}
-                        onChange={(event) => setIdentifier(event.target.value)}
+                        value={username}
+                        onChange={(event) => setUsername(event.target.value)}
                         autoComplete="username"
-                        placeholder="Enter username or email"
+                        placeholder="Enter your username"
                     />
                     <button
                         className="recovery-submit"
                         type="submit"
                         disabled={loading}
                     >
-                        {loading ? "Sending..." : "Send Reset Link"}
+                        {loading ? "Sending..." : "Send Verification Code"}
                     </button>
                 </form>
 
-                {message && <div className="recovery-message">{message}</div>}
+                {message && (
+                    <>
+                        <div className="recovery-message">{message}</div>
+                        <Link className="recovery-submit recovery-next-link" to="/reset-password">
+                            Enter Verification Code
+                        </Link>
+                    </>
+                )}
                 {error && <div className="recovery-error">{error}</div>}
 
                 <Link className="recovery-back" to="/">

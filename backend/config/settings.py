@@ -297,12 +297,20 @@ DEFAULT_FROM_EMAIL = config(
 
 FRONTEND_BASE_URL = config(
     "FRONTEND_BASE_URL",
-    default="http://localhost:5173",
+    default="",
+)
+
+# Public backend origin used for assets that must be reachable from email clients.
+# FRONTEND_BASE_URL may still be configured in production; password-reset requests
+# prefer the browser Origin header so they never fall back to localhost.
+BACKEND_PUBLIC_URL = config(
+    "BACKEND_PUBLIC_URL",
+    default="https://budget-buddy-finance-tracker-yo7z.onrender.com",
 )
 
 BUDGETBUDDY_LOGO_URL = config(
     "BUDGETBUDDY_LOGO_URL",
-    default=f"{FRONTEND_BASE_URL}/budgetbuddy-mark.png",
+    default=f"{BACKEND_PUBLIC_URL.rstrip('/')}/static/users/budgetbuddy-mark.png",
 )
 
 

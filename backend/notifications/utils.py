@@ -44,6 +44,16 @@ def send_branded_email(
         or ""
     ).strip()
 
+    # Never send a localhost image URL to a real email client. If an old
+    # environment variable still contains a local URL, use the public backend
+    # static asset instead.
+    if not logo_url or "localhost" in logo_url or "127.0.0.1" in logo_url:
+        backend_public_url = (
+            getattr(settings, "BACKEND_PUBLIC_URL", "")
+            or "https://budget-buddy-finance-tracker-yo7z.onrender.com"
+        ).rstrip("/")
+        logo_url = f"{backend_public_url}/static/users/budgetbuddy-mark.png"
+
     logo_html = ""
     if logo_url:
         logo_html = (
