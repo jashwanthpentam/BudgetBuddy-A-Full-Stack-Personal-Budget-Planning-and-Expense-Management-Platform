@@ -3,7 +3,8 @@ import MainLayout from "../layouts/MainLayout";
 import { getDashboardSummary } from "../services/dashboardService";
 import IncomeExpenseBarChart from "../components/Dashboard/IncomeExpenseBarChart";
 import "../Dashboard.css";
-import { useDateContext } from "../context/DateContext";
+import useModuleDate from "../hooks/useModuleDate";
+import PeriodSelector from "../components/PeriodSelector";
 
 export default function Dashboard() {
 
@@ -26,31 +27,17 @@ export default function Dashboard() {
         localStorage.getItem("username") || "User";
 
     const {
-        globalMonth,
-        globalYear,
-        setGlobalMonth,
-        setGlobalYear,
-    } = useDateContext();
+        month,
+        year,
+        setMonth,
+        setYear,
+    } = useModuleDate();
+
+    const [periodType, setPeriodType] = useState("month");
+    const [customStart, setCustomStart] = useState("");
+    const [customEnd, setCustomEnd] = useState("");
 
 
-    /* =====================================================
-       MONTHS
-    ===================================================== */
-
-    const months = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
 
 
     /* =====================================================
@@ -61,13 +48,27 @@ export default function Dashboard() {
 
         try {
 
+            if (
+                periodType === "custom" &&
+                (!customStart || !customEnd)
+            ) {
+                setLoading(false);
+                setError(false);
+                return;
+            }
+
             setLoading(true);
             setError(false);
 
             const dashboardRes =
                 await getDashboardSummary(
-                    globalMonth,
-                    globalYear
+                    month,
+                    year,
+                    {
+                        period: periodType,
+                        startDate: customStart,
+                        endDate: customEnd,
+                    }
                 );
 
             setTotalIncome(
@@ -148,8 +149,11 @@ export default function Dashboard() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        globalMonth,
-        globalYear
+        month,
+        year,
+        periodType,
+        customStart,
+        customEnd,
     ]);
 
 
@@ -378,75 +382,19 @@ export default function Dashboard() {
 
 
                     <div className="dashboard-period">
-
-                        <span className="period-label">
-                            VIEWING
-                        </span>
-
-                        <div className="period-controls">
-
-                            <select
-                                aria-label="Select dashboard month"
-                                value={globalMonth}
-                                onChange={(e) =>
-                                    setGlobalMonth(
-                                        Number(
-                                            e.target.value
-                                        )
-                                    )
-                                }
-                            >
-
-                                {months.map(
-                                    (
-                                        month,
-                                        index
-                                    ) => (
-
-                                        <option
-                                            key={
-                                                index + 1
-                                            }
-                                            value={
-                                                index + 1
-                                            }
-                                        >
-                                            {month}
-                                        </option>
-
-                                    )
-                                )}
-
-                            </select>
-
-
-                            <input
-                                type="number"
-                                min="2000"
-                                max="2100"
-                                aria-label="Select dashboard year"
-                                value={globalYear}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-
-                                    if (value === "") {
-                                        return;
-                                    }
-
-                                    const year = Number(value);
-
-                                    if (
-                                        Number.isInteger(year) &&
-                                        year >= 2000 &&
-                                        year <= 2100
-                                    ) {
-                                        setGlobalYear(year);
-                                    }
-                                }}
-                            />
-
-                        </div>
-
+                        <PeriodSelector
+                            month={month}
+                            year={year}
+                            setMonth={setMonth}
+                            setYear={setYear}
+                            periodType={periodType}
+                            setPeriodType={setPeriodType}
+                            customStart={customStart}
+                            setCustomStart={setCustomStart}
+                            customEnd={customEnd}
+                            setCustomEnd={setCustomEnd}
+                            label="Viewing"
+                        />
                     </div>
 
                 </section>

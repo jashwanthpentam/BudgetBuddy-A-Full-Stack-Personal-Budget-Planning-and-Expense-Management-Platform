@@ -306,3 +306,78 @@ class GenerateReportView(APIView):
         )
 
         return Response(report) 
+
+class EmailReportView(APIView):
+    """Generate the selected PDF report and email it to the signed-in user."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        start_date, end_date = get_date_range(request)
+
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+        if not start_date or not end_date:
+            return Response(
+                {"error": "start_date and end_date are required."},
+                status=400,
+            )
+
+        if end_date < start_date:
+            return Response(
+                {"error": "End date must be greater than or equal to start date."},
+                status=400,
+            )
+
+        if not request.user.email:
+            return Response(
+                {"error": "Your account does not have an email address."},
+                status=400,
+            )
+
+        try:
+            from .exports import ExportPDFView
+            from notifications.utils import send_branded_email
+
+            pdf_response = ExportPDFView().get(request)
+            pdf_bytes = b"".join(pdf_response.streaming_content)
+            filename = (
+                f"BudgetBuddy_Report_{start_date}_to_{end_date}.pdf"
+            )
+
+            sent = send_branded_email(
+                request.user,
+                "BudgetBuddy | Your Financial Report",
+                "Your financial report is ready",
+                (
+                    f"<p>Your BudgetBuddy financial report for "
+                    f"<strong>{start_date}</strong> to "
+                    f"<strong>{end_date}</strong> is attached.</p>"
+                ),
+                (
+                    f"Your BudgetBuddy financial report for "
+                    f"{start_date} to {end_date} is attached."
+                ),
+                attachments=[(filename, pdf_bytes)],
+            )
+
+            if not sent:
+                return Response(
+                    {"error": "Unable to send the report email right now."},
+                    status=503,
+                )
+
+            return Response({
+                "message": "The report has been sent to your registered email address.",
+                "recipient": request.user.email,
+            })
+
+        except Exception as exc:
+            print(f"Report email preparation failed: {exc}")
+            return Response(
+                {"error": "Unable to prepare the report email right now."},
+                status=500,
+            )

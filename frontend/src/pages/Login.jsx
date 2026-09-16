@@ -539,6 +539,17 @@ function Login() {
                     accent-color: var(--green);
                 }
 
+                .bb-forgot {
+                    color: #93c5fd;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-decoration: none;
+                }
+
+                .bb-forgot:hover {
+                    text-decoration: underline;
+                }
+
                 .bb-secure {
                     display: inline-flex;
                     align-items: center;
@@ -1053,10 +1064,9 @@ function Login() {
                                     Remember username
                                 </label>
 
-                                <span className="bb-secure">
-                                    <span className="bb-secure-dot" />
-                                    Secure connection
-                                </span>
+                                <Link className="bb-forgot" to="/forgot-password">
+                                    Forgot password?
+                                </Link>
                             </div>
 
                             <button className="bb-submit" type="submit" disabled={loading}>

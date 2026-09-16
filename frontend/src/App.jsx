@@ -14,6 +14,8 @@ import Notifications from "./pages/Notifications";
 import Budgets from "./pages/Budgets";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 
 function App(){
@@ -27,6 +29,10 @@ return(
 <Route path="/" element={<Login/>}/>
 
 <Route path="/register" element={<Register/>}/>
+
+<Route path="/forgot-password" element={<ForgotPassword/>}/>
+
+<Route path="/reset-password/:uid/:token" element={<ResetPassword/>}/>
 
 <Route path="/home" element={<Home/>}/>
 

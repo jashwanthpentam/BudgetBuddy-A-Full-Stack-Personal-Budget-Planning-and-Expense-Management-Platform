@@ -6,6 +6,7 @@ from .views import (
     SavingsReportView,
     FinancialSummaryView,
     GenerateReportView,
+    EmailReportView,
 )
 
 from .exports import(
@@ -44,6 +45,12 @@ urlpatterns = [
         "generate/",
         GenerateReportView.as_view(),
         name="generate-report",
+    ),
+
+    path(
+        "email/",
+        EmailReportView.as_view(),
+        name="email-report",
     ),
 
     path(

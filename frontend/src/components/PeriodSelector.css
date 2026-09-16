@@ -1,0 +1,93 @@
+.period-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 13px 14px;
+    min-width: min(430px, 100%);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.period-selector-label {
+    font-size: 10px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #94a3b8;
+    font-weight: 800;
+}
+
+.period-selector-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.period-selector-controls label {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.period-selector-controls label:first-child {
+    grid-column: 1 / -1;
+}
+
+.period-selector-controls label span {
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.period-selector-controls select,
+.period-selector-controls input {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 9px 11px;
+    border: 1px solid #334155;
+    border-radius: 9px;
+    background: #17243a;
+    color: #f8fafc;
+    font: inherit;
+}
+
+.period-selector-controls select:focus,
+.period-selector-controls input:focus {
+    outline: 2px solid rgba(34, 197, 94, 0.3);
+    outline-offset: 1px;
+}
+
+@media (max-width: 760px) {
+    .period-selector {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .period-selector-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .period-selector-controls label:first-child {
+        grid-column: auto;
+    }
+}
+
+html[data-theme="light"] .period-selector {
+    background: #ffffff;
+    border-color: #dbe4ee;
+}
+
+html[data-theme="light"] .period-selector-label,
+html[data-theme="light"] .period-selector-controls label span {
+    color: #64748b;
+}
+
+html[data-theme="light"] .period-selector-controls select,
+html[data-theme="light"] .period-selector-controls input {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #172033;
+}

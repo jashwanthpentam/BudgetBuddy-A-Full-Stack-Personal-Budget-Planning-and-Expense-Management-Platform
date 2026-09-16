@@ -774,8 +774,8 @@ class ExportPDFView(APIView):
                     s["body"],
                 ),
                 Paragraph(
-                    "<b>ACCOUNT</b><br/>"
-                    "Personal Finance",
+                    f"<b>NAME</b><br/>{safe_text(report.get('user', {}).get('name'), 'BudgetBuddy User')}<br/>"
+                    f"<b>EMAIL</b><br/>{safe_text(report.get('user', {}).get('email'), '—')}",
                     s["body"],
                 ),
             ]],

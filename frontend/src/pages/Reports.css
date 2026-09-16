@@ -1158,3 +1158,12 @@
     }
 
 }
+.download-email {
+    border: 1px solid #d8b36b;
+    background: rgba(216, 179, 107, 0.12);
+    color: #d8b36b;
+}
+
+.download-email:hover:not(:disabled) {
+    background: rgba(216, 179, 107, 0.2);
+}

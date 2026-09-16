@@ -4,6 +4,12 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.conf import settings
 
 from .models import Profile
 
@@ -11,6 +17,7 @@ from .serializers import (
     RegisterSerializer,
     ProfileSerializer,
     ChangePasswordSerializer,
+    BudgetBuddyTokenObtainPairSerializer,
 )
 
 
@@ -208,3 +215,134 @@ class GitHubLoginView(generics.GenericAPIView):
 
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh), "username": user.username})
+
+
+# =========================================================
+# JWT LOGIN
+# =========================================================
+
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+
+class BudgetBuddyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = BudgetBuddyTokenObtainPairSerializer
+
+
+# =========================================================
+# PASSWORD RESET
+# =========================================================
+
+class PasswordResetRequestView(generics.GenericAPIView):
+    permission_classes = []
+
+    def post(self, request):
+        identifier = str(request.data.get("identifier") or "").strip()
+
+        if not identifier:
+            return Response(
+                {"error": "Enter your username or email address."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = (
+            User.objects.filter(email__iexact=identifier).first()
+            or User.objects.filter(username__iexact=identifier).first()
+        )
+
+        generic_message = (
+            "If an account matches that information, password reset "
+            "instructions have been sent to its registered email address."
+        )
+
+        if not user or not user.is_active or not user.email:
+            return Response({"message": generic_message})
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_base = (
+            getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173")
+            or "http://localhost:5173"
+        ).rstrip("/")
+        reset_url = f"{frontend_base}/reset-password/{uid}/{token}"
+
+        from notifications.utils import send_branded_email
+
+        html_body = f"""
+        <p>Hello <strong>{user.username}</strong>,</p>
+        <p>We received a request to reset your BudgetBuddy password.</p>
+        <p>
+            <a href="{reset_url}"
+               style="display:inline-block;padding:12px 18px;
+                      background:#d5b678;color:#0f172a;
+                      text-decoration:none;border-radius:8px;
+                      font-weight:700;">
+                Reset Password
+            </a>
+        </p>
+        <p>If you did not request this, you can safely ignore this email.</p>
+        """
+        text_body = (
+            f"Hello {user.username},\n\n"
+            f"Reset your BudgetBuddy password: {reset_url}\n\n"
+            "If you did not request this, you can safely ignore this email."
+        )
+
+        sent = send_branded_email(
+            user,
+            "BudgetBuddy | Password Reset",
+            "Reset your password",
+            html_body,
+            text_body,
+        )
+
+        if not sent:
+            return Response(
+                {
+                    "error": (
+                        "Unable to send reset instructions right now. "
+                        "Please try again later."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response({"message": generic_message})
+
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    permission_classes = []
+
+    def post(self, request):
+        uid = request.data.get("uid")
+        token = request.data.get("token")
+        password = request.data.get("password") or ""
+
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid or ""))
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {"error": "Invalid or expired password reset link."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not default_token_generator.check_token(user, token or ""):
+            return Response(
+                {"error": "Invalid or expired password reset link."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": " ".join(exc.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(password)
+        user.save(update_fields=["password"])
+
+        return Response({
+            "message": "Password reset successfully. You can now sign in."
+        })

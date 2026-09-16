@@ -2,10 +2,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
 
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
+from rest_framework_simplejwt.views import TokenRefreshView
+from users.views import BudgetBuddyTokenObtainPairView
 
 
 def home(request):
@@ -29,7 +27,7 @@ urlpatterns = [
 
     path(
         'api/token/',
-        TokenObtainPairView.as_view(),
+        BudgetBuddyTokenObtainPairView.as_view(),
         name='token_obtain_pair'
     ),
 

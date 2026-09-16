@@ -37,3 +37,18 @@ export const downloadExcelReport = async ({ startDate, endDate }) => {
         }
     );
 };
+
+
+export const emailPDFReport = async ({ startDate, endDate }) => {
+    const response = await API.post(
+        "/reports/email/",
+        null,
+        {
+            params: {
+                start_date: startDate,
+                end_date: endDate,
+            },
+        },
+    );
+    return response.data;
+};

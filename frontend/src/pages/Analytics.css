@@ -759,3 +759,9 @@
     }
 
 }
+/* PeriodSelector owns the control card; keep the legacy wrapper neutral. */
+.analytics-period {
+    background: transparent;
+    border: 0;
+    padding: 0;
+}

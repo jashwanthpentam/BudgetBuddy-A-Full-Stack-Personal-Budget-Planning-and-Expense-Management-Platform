@@ -26,6 +26,28 @@ class ExpenseListCreateView(generics.ListCreateAPIView):
             user=self.request.user
         )
 
+        # Filter by selected month/year when supplied by the module.
+        month = self.request.query_params.get("month")
+        year = self.request.query_params.get("year")
+
+        if month:
+            try:
+                month = int(month)
+            except (TypeError, ValueError):
+                raise ValidationError({"error": "month must be a valid number."})
+            if not 1 <= month <= 12:
+                raise ValidationError({"error": "month must be between 1 and 12."})
+            queryset = queryset.filter(expense_date__month=month)
+
+        if year:
+            try:
+                year = int(year)
+            except (TypeError, ValueError):
+                raise ValidationError({"error": "year must be a valid number."})
+            if not 2000 <= year <= 2100:
+                raise ValidationError({"error": "year must be between 2000 and 2100."})
+            queryset = queryset.filter(expense_date__year=year)
+
         # Filter by category
         category = self.request.query_params.get("category")
 

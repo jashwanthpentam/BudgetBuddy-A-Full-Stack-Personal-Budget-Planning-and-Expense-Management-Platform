@@ -5,6 +5,8 @@ from expenses.models import Expense
 from budgets.models import Budget
 from savings.models import SavingsGoal
 from django.db.models import Q
+from calendar import monthrange
+from datetime import date
 
 def financial_totals(user):
     income = Income.objects.filter(user=user).aggregate(v=Sum('amount'))['v'] or Decimal('0')
@@ -171,3 +173,74 @@ def deletion_impact(user, resource, ids):
         qs = __import__('notifications.models', fromlist=['Notification']).Notification.objects.filter(user=user, id__in=ids)
         return {'resource': resource, 'count': qs.count(), 'removed_amount': Decimal('0')}
     raise ValueError('Unsupported resource')
+
+
+# ============================================================
+# Dashboard / Analytics period handling
+# Shared with Savings so all period views use the same semantics.
+# ============================================================
+
+
+def parse_period_params(params):
+    period = (params.get("period") or "month").strip().lower()
+
+    if period == "month":
+        try:
+            month = int(params.get("month"))
+            year = int(params.get("year"))
+        except (TypeError, ValueError):
+            raise ValueError("month and year must be valid numbers.")
+        if not 1 <= month <= 12:
+            raise ValueError("month must be between 1 and 12.")
+        if not 2000 <= year <= 2100:
+            raise ValueError("year must be between 2000 and 2100.")
+        return (
+            period,
+            month,
+            year,
+            date(year, month, 1),
+            date(year, month, monthrange(year, month)[1]),
+        )
+
+    if period == "custom":
+        try:
+            start_date = date.fromisoformat(str(params.get("start_date")))
+            end_date = date.fromisoformat(str(params.get("end_date")))
+        except (TypeError, ValueError):
+            raise ValueError("start_date and end_date must be valid dates.")
+        if start_date > end_date:
+            raise ValueError("start_date cannot be after end_date.")
+        return period, None, None, start_date, end_date
+
+    if period == "lifetime":
+        return period, None, None, None, None
+
+    raise ValueError("period must be month, custom, or lifetime.")
+
+
+def period_querysets(user, period, month=None, year=None, start_date=None, end_date=None):
+    incomes = Income.objects.filter(user=user)
+    expenses = Expense.objects.filter(user=user)
+    budgets = Budget.objects.filter(user=user)
+
+    if period == "month":
+        incomes = incomes.filter(income_date__month=month, income_date__year=year)
+        expenses = expenses.filter(expense_date__month=month, expense_date__year=year)
+        budgets = budgets.filter(month=month, year=year)
+
+    elif period == "custom":
+        incomes = incomes.filter(income_date__range=(start_date, end_date))
+        expenses = expenses.filter(expense_date__range=(start_date, end_date))
+
+        query = Q()
+        cursor = date(start_date.year, start_date.month, 1)
+        last = date(end_date.year, end_date.month, 1)
+        while cursor <= last:
+            query |= Q(month=cursor.month, year=cursor.year)
+            if cursor.month == 12:
+                cursor = date(cursor.year + 1, 1, 1)
+            else:
+                cursor = date(cursor.year, cursor.month + 1, 1)
+        budgets = budgets.filter(query)
+
+    return incomes, expenses, budgets

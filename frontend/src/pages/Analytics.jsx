@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MainLayout from "../layouts/MainLayout";
-import { useDateContext } from "../context/DateContext";
+import useModuleDate from "../hooks/useModuleDate";
+import PeriodSelector from "../components/PeriodSelector";
 import { getAnalytics } from "../services/analyticsService";
 
 import {
@@ -37,11 +38,15 @@ const CHART_COLORS = [
 function Analytics() {
 
     const {
-        globalMonth,
-        globalYear,
-        setGlobalMonth,
-        setGlobalYear,
-    } = useDateContext();
+        month,
+        year,
+        setMonth,
+        setYear,
+    } = useModuleDate();
+
+    const [periodType, setPeriodType] = useState("month");
+    const [customStart, setCustomStart] = useState("");
+    const [customEnd, setCustomEnd] = useState("");
 
 
     const [analytics, setAnalytics] = useState(null);
@@ -57,7 +62,13 @@ function Analytics() {
         loadAnalytics();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [globalMonth, globalYear]);
+    }, [
+        month,
+        year,
+        periodType,
+        customStart,
+        customEnd,
+    ]);
 
 
     const loadAnalytics = async () => {
@@ -67,9 +78,23 @@ function Analytics() {
             setLoading(true);
             setError("");
 
+            if (
+                periodType === "custom" &&
+                (!customStart || !customEnd)
+            ) {
+                setAnalytics(null);
+                setLoading(false);
+                return;
+            }
+
             const data = await getAnalytics(
-                globalMonth,
-                globalYear
+                month,
+                year,
+                {
+                    period: periodType,
+                    startDate: customStart,
+                    endDate: customEnd,
+                }
             );
 
             setAnalytics(data);
@@ -175,52 +200,19 @@ function Analytics() {
                     </div>
 
                     <div className="analytics-period">
-
-                        <select
-                            value={globalMonth}
-                            onChange={(e) =>
-                                setGlobalMonth(
-                                    Number(e.target.value)
-                                )
-                            }
-                        >
-
-                            {[
-                                "January",
-                                "February",
-                                "March",
-                                "April",
-                                "May",
-                                "June",
-                                "July",
-                                "August",
-                                "September",
-                                "October",
-                                "November",
-                                "December",
-                            ].map((month, index) => (
-
-                                <option
-                                    key={month}
-                                    value={index + 1}
-                                >
-                                    {month}
-                                </option>
-
-                            ))}
-
-                        </select>
-
-                        <input
-                            type="number"
-                            value={globalYear}
-                            onChange={(e) =>
-                                setGlobalYear(
-                                    Number(e.target.value)
-                                )
-                            }
+                        <PeriodSelector
+                            month={month}
+                            year={year}
+                            setMonth={setMonth}
+                            setYear={setYear}
+                            periodType={periodType}
+                            setPeriodType={setPeriodType}
+                            customStart={customStart}
+                            setCustomStart={setCustomStart}
+                            customEnd={customEnd}
+                            setCustomEnd={setCustomEnd}
+                            label="Viewing"
                         />
-
                     </div>
 
                 </div>

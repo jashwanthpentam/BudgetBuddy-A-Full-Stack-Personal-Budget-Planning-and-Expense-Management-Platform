@@ -1,6 +1,7 @@
 from html import escape
 from threading import Thread
 import json
+import base64
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -16,6 +17,124 @@ from .models import (
 # ============================================================
 # SEND EMAIL USING BREVO API
 # ============================================================
+
+
+def send_branded_email(
+    user,
+    subject,
+    heading,
+    html_body,
+    text_body,
+    attachments=None,
+):
+    """Send a reusable branded BudgetBuddy email through Brevo."""
+    recipient = (user.email or "").strip()
+    api_key = (getattr(settings, "BREVO_API_KEY", "") or "").strip()
+    sender = (
+        getattr(settings, "BREVO_FROM_EMAIL", "")
+        or getattr(settings, "DEFAULT_FROM_EMAIL", "")
+        or ""
+    ).strip()
+
+    if not recipient or not api_key or not sender:
+        return False
+
+    logo_url = (
+        getattr(settings, "BUDGETBUDDY_LOGO_URL", "")
+        or ""
+    ).strip()
+
+    logo_html = ""
+    if logo_url:
+        logo_html = (
+            f'<img src="{escape(logo_url)}" alt="BudgetBuddy" '
+            'width="54" height="54" '
+            'style="display:block;margin:0 auto 10px;object-fit:contain;" />'
+        )
+
+    safe_heading = escape(str(heading))
+    safe_username = escape(user.username or "BudgetBuddy User")
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="margin:0;padding:20px;background:#f4f6f9;
+                 font-family:Arial,sans-serif;">
+      <div style="max-width:600px;margin:0 auto;background:#fff;
+                  border-radius:12px;overflow:hidden;
+                  border:1px solid #e5e7eb;">
+        <div style="background:#0f172a;padding:24px;text-align:center;">
+          {logo_html}
+          <h1 style="margin:0;color:#fff;font-size:28px;">BudgetBuddy</h1>
+          <p style="margin:8px 0 0;color:#cbd5e1;font-size:14px;">
+            Personal Budget Planning
+          </p>
+        </div>
+        <div style="padding:30px;color:#334155;">
+          <h2 style="margin-top:0;color:#0f172a;">{safe_heading}</h2>
+          <p style="font-size:16px;line-height:1.6;">
+            Hello <strong>{safe_username}</strong>,
+          </p>
+          <div style="font-size:16px;line-height:1.7;color:#475569;">
+            {html_body}
+          </div>
+          <div style="margin-top:25px;padding:16px;background:#f8fafc;
+                      border-left:4px solid #c8a96b;border-radius:4px;">
+            <strong style="color:#0f172a;">BudgetBuddy</strong>
+            <p style="margin:8px 0 0;color:#64748b;font-size:14px;">
+              This is an automated message from your BudgetBuddy account.
+            </p>
+          </div>
+        </div>
+        <div style="padding:20px;text-align:center;background:#f8fafc;
+                    border-top:1px solid #e5e7eb;color:#64748b;font-size:12px;">
+          BudgetBuddy • Personal Budget Planning &amp; Expense Management Platform
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    payload = {
+        "sender": {"name": "BudgetBuddy", "email": sender},
+        "to": [{"email": recipient, "name": user.username}],
+        "subject": subject,
+        "textContent": text_body,
+        "htmlContent": html_content,
+    }
+
+    if attachments:
+        payload["attachment"] = [
+            {
+                "content": base64.b64encode(content).decode("ascii"),
+                "name": name,
+            }
+            for name, content in attachments
+        ]
+
+    request = Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=20) as response:
+            return 200 <= response.getcode() < 300
+    except (HTTPError, URLError) as exc:
+        print(f"BudgetBuddy branded email failed for {recipient}: {exc}")
+        return False
+    except Exception as exc:
+        print(f"BudgetBuddy branded email failed for {recipient}: {exc}")
+        return False
+
+
 
 def send_notification_email(user, title, message):
     """
@@ -121,6 +240,8 @@ def send_notification_email(user, title, message):
                 padding: 24px;
                 text-align: center;
             ">
+
+                {f'<img src="{escape(getattr(settings, "BUDGETBUDDY_LOGO_URL", ""))}" alt="BudgetBuddy" width="54" height="54" style="display:block;margin:0 auto 10px;object-fit:contain;" />' if getattr(settings, "BUDGETBUDDY_LOGO_URL", "") else ""}
 
                 <h1 style="
                     margin: 0;

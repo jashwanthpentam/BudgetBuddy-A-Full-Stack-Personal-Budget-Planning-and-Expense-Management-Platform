@@ -1,10 +1,24 @@
 import API from "./api";
 
-export const getAnalytics = async (month, year) => {
+export const getAnalytics = async (
+    month,
+    year,
+    options = {},
+) => {
+    const params = {
+        period: options.period || "month",
+    };
 
-    const response = await API.get(
-        `/dashboard/analytics/?month=${month}&year=${year}`
-    );
+    if (params.period === "month") {
+        params.month = month;
+        params.year = year;
+    }
 
+    if (params.period === "custom") {
+        params.start_date = options.startDate;
+        params.end_date = options.endDate;
+    }
+
+    const response = await API.get("/dashboard/analytics/", { params });
     return response.data;
 };

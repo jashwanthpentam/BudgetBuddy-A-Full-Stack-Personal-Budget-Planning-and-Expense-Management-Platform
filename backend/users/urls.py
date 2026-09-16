@@ -4,10 +4,16 @@ from .views import (
     RegisterView,
     ProfileView,
     ChangePasswordView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
 )
 
 
 urlpatterns = [
+
+    # Password recovery (public)
+    path("password-reset/request/", PasswordResetRequestView.as_view(), name="password-reset-request"),
+    path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
 
     # Registration
     path(

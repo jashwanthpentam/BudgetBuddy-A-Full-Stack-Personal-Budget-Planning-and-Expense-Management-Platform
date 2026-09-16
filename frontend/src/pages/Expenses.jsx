@@ -50,7 +50,7 @@ export default function Expenses() {
 
   const fetchExpenses = async () => {
     try {
-      let url = "/expenses/?";
+      let url = `/expenses/?month=${month}&year=${year}&`;
 
       if (categoryFilter) {
         url += `category=${categoryFilter}&`;

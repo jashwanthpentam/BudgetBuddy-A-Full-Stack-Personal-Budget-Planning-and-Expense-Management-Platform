@@ -145,7 +145,18 @@ def build_report(request, start_date, end_date):
         if total_income > 0 else Decimal("0")
     )
 
+    user_name = (
+        user.get_full_name()
+        or user.username
+        or "BudgetBuddy User"
+    ).strip()
+
     return {
+        "user": {
+            "name": user_name,
+            "email": user.email or "",
+            "username": user.username,
+        },
         "report_period": {
             "start_date": start_date,
             "end_date": end_date,

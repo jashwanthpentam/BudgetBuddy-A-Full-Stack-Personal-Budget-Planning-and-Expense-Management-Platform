@@ -295,6 +295,17 @@ DEFAULT_FROM_EMAIL = config(
 )
 
 
+FRONTEND_BASE_URL = config(
+    "FRONTEND_BASE_URL",
+    default="http://localhost:5173",
+)
+
+BUDGETBUDDY_LOGO_URL = config(
+    "BUDGETBUDDY_LOGO_URL",
+    default=f"{FRONTEND_BASE_URL}/budgetbuddy-mark.png",
+)
+
+
 # ============================================================
 # PRODUCTION SECURITY
 # ============================================================

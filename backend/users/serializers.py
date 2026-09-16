@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 
@@ -277,3 +279,25 @@ class ChangePasswordSerializer(
         user.save()
 
         return user
+
+class BudgetBuddyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """JWT login with clear, case-insensitive username handling."""
+
+    def validate(self, attrs):
+        username = str(attrs.get("username") or "").strip()
+        password = attrs.get("password") or ""
+        user = User.objects.filter(username__iexact=username).first()
+
+        if not user:
+            raise AuthenticationFailed("No user found with this username.")
+        if not user.check_password(password):
+            raise AuthenticationFailed("Wrong password. Please try again.")
+        if not user.is_active:
+            raise AuthenticationFailed("This account is inactive.")
+
+        refresh = self.get_token(user)
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "username": user.username,
+        }
