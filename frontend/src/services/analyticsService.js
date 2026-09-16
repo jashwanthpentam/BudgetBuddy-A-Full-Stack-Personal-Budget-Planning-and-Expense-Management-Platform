@@ -5,18 +5,20 @@ export const getAnalytics = async (
     year,
     options = {},
 ) => {
-    const params = {
-        period: options.period || "month",
-    };
+    const period = options.period || "month";
+    const params = { period };
 
-    if (params.period === "month") {
-        params.month = month;
-        params.year = year;
-    }
-
-    if (params.period === "custom") {
+    if (period === "month") {
+        params.month = Number(month);
+        params.year = Number(year);
+    } else if (period === "custom") {
+        if (!options.startDate || !options.endDate) {
+            throw new Error("Custom period requires both start and end dates.");
+        }
         params.start_date = options.startDate;
         params.end_date = options.endDate;
+    } else if (period !== "lifetime") {
+        throw new Error("Invalid analytics period.");
     }
 
     const response = await API.get("/dashboard/analytics/", { params });

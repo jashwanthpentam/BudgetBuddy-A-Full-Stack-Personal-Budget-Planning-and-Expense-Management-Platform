@@ -11,6 +11,7 @@ from django.utils import timezone
 from datetime import timedelta
 import secrets
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.conf import settings
@@ -334,6 +335,40 @@ class PasswordResetRequestView(generics.GenericAPIView):
         return Response({"message": generic_message})
 
 
+PASSWORD_RESET_OTP_MAX_AGE = 10 * 60
+
+
+def _get_valid_password_reset_otp(user):
+    """Return the newest usable OTP record, or None when none is valid."""
+    otp_record = PasswordResetOTP.objects.filter(
+        user=user,
+        used_at__isnull=True,
+    ).first()
+
+    if not otp_record or otp_record.expires_at <= timezone.now():
+        return None
+
+    if otp_record.attempts >= 5:
+        return None
+
+    return otp_record
+
+
+def _make_password_reset_verification_token(user, otp_record):
+    signer = TimestampSigner(salt="budgetbuddy-password-reset-otp")
+    return signer.sign(f"{user.pk}:{otp_record.pk}")
+
+
+def _read_password_reset_verification_token(token):
+    signer = TimestampSigner(salt="budgetbuddy-password-reset-otp")
+    try:
+        value = signer.unsign(token, max_age=PASSWORD_RESET_OTP_MAX_AGE)
+        user_id, otp_id = value.split(":", 1)
+        return int(user_id), int(otp_id)
+    except (BadSignature, SignatureExpired, TypeError, ValueError):
+        return None, None
+
+
 class PasswordResetOTPRequestView(generics.GenericAPIView):
     """Identify a user by username and send a verification OTP to their registered email."""
 
@@ -408,19 +443,18 @@ class PasswordResetOTPRequestView(generics.GenericAPIView):
         return Response({"message": generic_message})
 
 
-class PasswordResetOTPConfirmView(generics.GenericAPIView):
-    """Verify the emailed OTP and set a new password."""
+class PasswordResetOTPVerifyView(generics.GenericAPIView):
+    """Verify the emailed OTP without changing the password yet."""
 
     permission_classes = []
 
     def post(self, request):
         username = str(request.data.get("username") or "").strip()
         otp = str(request.data.get("otp") or "").strip()
-        password = request.data.get("password") or ""
 
-        if not username or not otp or not password:
+        if not username or not otp:
             return Response(
-                {"error": "Username, verification code, and new password are required."},
+                {"error": "Username and verification code are required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -437,20 +471,10 @@ class PasswordResetOTPConfirmView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        otp_record = PasswordResetOTP.objects.filter(
-            user=user,
-            used_at__isnull=True,
-        ).first()
-
-        if not otp_record or otp_record.expires_at <= timezone.now():
+        otp_record = _get_valid_password_reset_otp(user)
+        if not otp_record:
             return Response(
                 {"error": "Invalid or expired verification code."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if otp_record.attempts >= 5:
-            return Response(
-                {"error": "Too many verification attempts. Request a new code."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -461,6 +485,103 @@ class PasswordResetOTPConfirmView(generics.GenericAPIView):
                 {"error": "Invalid or expired verification code."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        return Response({
+            "message": "Verification successful. You can now create a new password.",
+            "username": user.username,
+            "verification_token": _make_password_reset_verification_token(
+                user, otp_record
+            ),
+        })
+
+
+class PasswordResetOTPConfirmView(generics.GenericAPIView):
+    """Set a new password after OTP verification.
+
+    The verification_token is issued only after the OTP endpoint validates
+    the code. The old combined username/otp/password payload is still
+    accepted for backward compatibility.
+    """
+
+    permission_classes = []
+
+    def post(self, request):
+        verification_token = str(
+            request.data.get("verification_token") or ""
+        ).strip()
+        username = str(request.data.get("username") or "").strip()
+        otp = str(request.data.get("otp") or "").strip()
+        password = request.data.get("password") or ""
+
+        if not password:
+            return Response(
+                {"error": "New password is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if verification_token:
+            user_id, otp_id = _read_password_reset_verification_token(
+                verification_token
+            )
+            if not user_id or not otp_id:
+                return Response(
+                    {"error": "Invalid or expired verification session. Please verify a new code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = User.objects.filter(
+                pk=user_id,
+                is_active=True,
+            ).first()
+            otp_record = PasswordResetOTP.objects.filter(
+                pk=otp_id,
+                user_id=user_id,
+                used_at__isnull=True,
+            ).first()
+
+            if not user or not otp_record or otp_record.expires_at <= timezone.now():
+                return Response(
+                    {"error": "Invalid or expired verification session. Please verify a new code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # Preserve the previous API contract for any older frontend/client.
+            if not username or not otp:
+                return Response(
+                    {"error": "Username, verification code, and new password are required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not otp.isdigit() or len(otp) != 6:
+                return Response(
+                    {"error": "Enter the 6-digit verification code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = User.objects.filter(
+                username__iexact=username,
+                is_active=True,
+            ).first()
+            if not user:
+                return Response(
+                    {"error": "Invalid or expired verification code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            otp_record = _get_valid_password_reset_otp(user)
+            if not otp_record:
+                return Response(
+                    {"error": "Invalid or expired verification code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not check_password(otp, otp_record.code_hash):
+                otp_record.attempts += 1
+                otp_record.save(update_fields=["attempts"])
+                return Response(
+                    {"error": "Invalid or expired verification code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         try:
             validate_password(password, user=user)

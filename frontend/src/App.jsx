@@ -16,6 +16,7 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyOTP from "./pages/VerifyOTP";
 
 
 function App(){
@@ -31,6 +32,8 @@ return(
 <Route path="/register" element={<Register/>}/>
 
 <Route path="/forgot-password" element={<ForgotPassword/>}/>
+
+<Route path="/verify-otp" element={<VerifyOTP/>}/>
 
 <Route path="/reset-password" element={<ResetPassword/>}/>
 

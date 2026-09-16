@@ -23,8 +23,10 @@ export default function PeriodSelector({
 
     const commitYear = () => {
         const value = Number(draftYear);
+
         if (Number.isInteger(value) && value >= 2000 && value <= 2100) {
             setYear(value);
+            setDraftYear(String(value));
         } else {
             setDraftYear(String(year));
         }
@@ -79,7 +81,9 @@ export default function PeriodSelector({
                                 min="2000"
                                 max="2100"
                                 value={draftYear}
-                                onChange={(event) => setDraftYear(event.target.value)}
+                                onChange={(event) =>
+                                    setDraftYear(event.target.value)
+                                }
                                 onBlur={commitYear}
                                 onKeyDown={(event) => {
                                     if (event.key === "Enter") {
@@ -99,7 +103,9 @@ export default function PeriodSelector({
                                 aria-label="Custom start date"
                                 type="date"
                                 value={customStart}
-                                onChange={(event) => setCustomStart(event.target.value)}
+                                onChange={(event) =>
+                                    setCustomStart(event.target.value)
+                                }
                             />
                         </label>
 
@@ -110,7 +116,9 @@ export default function PeriodSelector({
                                 type="date"
                                 min={customStart || undefined}
                                 value={customEnd}
-                                onChange={(event) => setCustomEnd(event.target.value)}
+                                onChange={(event) =>
+                                    setCustomEnd(event.target.value)
+                                }
                             />
                         </label>
                     </>

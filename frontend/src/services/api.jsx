@@ -15,6 +15,7 @@ const PUBLIC_ROUTES = [
     "/users/password-reset/request/",
     "/users/password-reset/confirm/",
     "/users/password-reset/request-otp/",
+    "/users/password-reset/verify-otp/",
     "/users/password-reset/confirm-otp/",
 ];
 

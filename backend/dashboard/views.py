@@ -391,16 +391,25 @@ def analytics(request):
             "percentage": round(float(percentage), 2),
         })
 
-    expense_totals = {
-        row["category"]: money(row["total"])
-        for row in category_rows
-    }
-
+    # Budget utilization must be calculated against the same month/year as
+    # each budget. The previous category-only aggregation reused the entire
+    # selected-period category spend for every monthly budget of that category,
+    # which made custom and lifetime period views incorrect.
     budget_utilization_data = []
-    for budget in budgets.order_by("category", "id"):
-        spent = expense_totals.get(
-            budget.category,
-            Decimal("0"),
+    for budget in budgets.order_by("category", "year", "month", "id"):
+        budget_expenses = expenses.filter(
+            category=budget.category,
+            expense_date__month=budget.month,
+            expense_date__year=budget.year,
+        )
+
+        if period == "custom":
+            budget_expenses = budget_expenses.filter(
+                expense_date__range=(start_date, end_date)
+            )
+
+        spent = money(
+            budget_expenses.aggregate(total=Sum("amount"))["total"]
         )
         utilization = (
             (spent / budget.budget_amount) * Decimal("100")

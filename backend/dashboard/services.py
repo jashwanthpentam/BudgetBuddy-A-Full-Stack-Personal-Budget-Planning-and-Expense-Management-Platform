@@ -182,12 +182,22 @@ def deletion_impact(user, resource, ids):
 
 
 def parse_period_params(params):
+    """Normalize the period selector used by Dashboard and Analytics.
+
+    The endpoint remains backward compatible, but missing month/year values
+    now fall back to the current month instead of producing an unusable 400.
+    Custom periods remain explicitly date-bounded and lifetime remains
+    unbounded.
+    """
     period = (params.get("period") or "month").strip().lower()
 
     if period == "month":
+        today = date.today()
+        raw_month = params.get("month")
+        raw_year = params.get("year")
         try:
-            month = int(params.get("month"))
-            year = int(params.get("year"))
+            month = int(raw_month) if raw_month not in (None, "") else today.month
+            year = int(raw_year) if raw_year not in (None, "") else today.year
         except (TypeError, ValueError):
             raise ValueError("month and year must be valid numbers.")
         if not 1 <= month <= 12:

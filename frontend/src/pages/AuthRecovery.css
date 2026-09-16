@@ -165,3 +165,12 @@ html[data-theme="light"] .recovery-form input {
     border-color: #cbd5e1;
     color: #172033;
 }
+
+.recovery-next-link {
+    display: block;
+    margin-top: 12px;
+    padding: 13px 16px;
+    text-align: center;
+    text-decoration: none;
+    box-sizing: border-box;
+}

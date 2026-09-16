@@ -167,7 +167,36 @@ function Analytics() {
 
 
     if (!analytics) {
-        return null;
+        return (
+            <MainLayout title="Analytics">
+                <div className="analytics-page">
+                    <div className="analytics-header">
+                        <div>
+                            <h1>Financial Analytics</h1>
+                            <p>Detailed analysis of your financial activity.</p>
+                        </div>
+                        <div className="analytics-period">
+                            <PeriodSelector
+                                month={month}
+                                year={year}
+                                setMonth={setMonth}
+                                setYear={setYear}
+                                periodType={periodType}
+                                setPeriodType={setPeriodType}
+                                customStart={customStart}
+                                setCustomStart={setCustomStart}
+                                customEnd={customEnd}
+                                setCustomEnd={setCustomEnd}
+                                label="Viewing"
+                            />
+                        </div>
+                    </div>
+                    <div className="analytics-state">
+                        Select both a start date and an end date to load the custom period.
+                    </div>
+                </div>
+            </MainLayout>
+        );
     }
 
 

@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import API from "../services/api";
 import "./AuthRecovery.css";
 
 export default function ResetPassword() {
     const { uid, token } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
+    const legacyTokenFlow = Boolean(uid && token);
+
+    const query = new URLSearchParams(location.search);
+    const username = query.get("username") || sessionStorage.getItem("passwordResetUsername") || "";
+    const verificationToken = sessionStorage.getItem("passwordResetVerificationToken") || "";
 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -17,6 +23,11 @@ export default function ResetPassword() {
         event.preventDefault();
         setMessage("");
         setError("");
+
+        if (!legacyTokenFlow && !verificationToken) {
+            setError("Your verification session is missing or expired. Verify a new code first.");
+            return;
+        }
 
         if (!password || !confirmPassword) {
             setError("Enter and confirm your new password.");
@@ -30,11 +41,23 @@ export default function ResetPassword() {
 
         try {
             setLoading(true);
-            const response = await API.post(
-                "/users/password-reset/confirm/",
-                { uid, token, password },
-            );
+            const payload = legacyTokenFlow
+                ? { uid, token, password }
+                : {
+                    username,
+                    verification_token: verificationToken,
+                    password,
+                };
+
+            const endpoint = legacyTokenFlow
+                ? "/users/password-reset/confirm/"
+                : "/users/password-reset/confirm-otp/";
+
+            const response = await API.post(endpoint, payload);
             setMessage(response.data.message);
+
+            sessionStorage.removeItem("passwordResetUsername");
+            sessionStorage.removeItem("passwordResetVerificationToken");
             setTimeout(() => navigate("/"), 900);
         } catch (requestError) {
             setError(
@@ -45,6 +68,30 @@ export default function ResetPassword() {
             setLoading(false);
         }
     };
+
+    if (!legacyTokenFlow && !verificationToken) {
+        return (
+            <main className="recovery-page">
+                <section className="recovery-card">
+                    <div className="recovery-brand">
+                        <img src="/budgetbuddy-mark.png" alt="BudgetBuddy" />
+                        <div>
+                            <strong>BudgetBuddy</strong>
+                            <span>Personal Finance</span>
+                        </div>
+                    </div>
+                    <h1>Verification required</h1>
+                    <p>Verify the code sent to your registered email before creating a new password.</p>
+                    <Link className="recovery-submit recovery-next-link" to="/verify-otp">
+                        Verify Code
+                    </Link>
+                    <Link className="recovery-back" to="/">
+                        ← Back to Sign In
+                    </Link>
+                </section>
+            </main>
+        );
+    }
 
     return (
         <main className="recovery-page">
@@ -59,8 +106,8 @@ export default function ResetPassword() {
 
                 <h1>Create a new password</h1>
                 <p>
-                    Choose a new password that satisfies the security
-                    requirements for your BudgetBuddy account.
+                    Your verification code has been accepted. Choose a new
+                    password that satisfies the security requirements.
                 </p>
 
                 <form className="recovery-form" onSubmit={submit}>
@@ -74,16 +121,12 @@ export default function ResetPassword() {
                         placeholder="Enter new password"
                     />
 
-                    <label htmlFor="confirm-password">
-                        Confirm new password
-                    </label>
+                    <label htmlFor="confirm-password">Confirm new password</label>
                     <input
                         id="confirm-password"
                         type="password"
                         value={confirmPassword}
-                        onChange={(event) =>
-                            setConfirmPassword(event.target.value)
-                        }
+                        onChange={(event) => setConfirmPassword(event.target.value)}
                         autoComplete="new-password"
                         placeholder="Confirm new password"
                     />
